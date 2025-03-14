@@ -1,0 +1,2 @@
+# BackEnd-All-Too-Accountable
+ El backend de All Too Accountable está desarrollado con Flask (framework de Python) y utiliza SQLite como sistema de gestión de base de datos. Su principal objetivo es proporcionar una API que respalde todas las funcionalidades del frontend, tales como el registro e inicio de sesión de usuarios, gestión de transacciones, categorías, metas de ahorro y reportes financieros.
