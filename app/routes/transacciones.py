@@ -1,74 +1,32 @@
 from flask import Blueprint, request, jsonify
-from app.database import db
-from app.models.transaccion import Transaccion
+from app.models import db, Transaccion
 from datetime import datetime
 
-transacciones_bp = Blueprint('transacciones', __name__)
+transacciones_bp = Blueprint("transacciones", __name__)
 
-# Crea una nueva transacción
-@transacciones_bp.route('/transacciones', methods=['POST'])
+@transacciones_bp.route("/", methods=["POST"])
 def crear_transaccion():
-    data = request.json
+    data = request.get_json()
+
     try:
-        transaccion = Transaccion(
-            descripcion=data['descripcion'],
-            monto=float(data['monto']),
-            fecha=datetime.strptime(data['fecha'], '%Y-%m-%d'),
-            categoria=data['categoria'],
-            tipo=data['tipo']
+        nueva = Transaccion(
+            fecha=datetime.strptime(data["fecha"], "%Y-%m-%d"),
+            monto=float(data["monto"].replace(".", "")),
+            categoria=data["categoria"],
+            descripcion=data["descripcion"],
+            tipo_pago=data["tipoPago"],
+            imagen=None,  # Puedes manejar imagen en otro endpoint con `request.files`
+            cuotas=int(data.get("cuotas", 1)),
+            interes=float(data.get("interes", 0)),
+            valor_cuota=float(data.get("valorCuota", 0)),
+            total_credito=float(data.get("totalCredito", 0)),
+            tipo=data["tipo"],
+            se_repite=bool(data.get("repetido", False)),
+            id_usuario=1,  # Por ahora fija, después usarás el ID del usuario logueado
+            visible=True
         )
-        db.session.add(transaccion)
+        db.session.add(nueva)
         db.session.commit()
-        return jsonify({"mensaje": "Transacción creada correctamente"}), 201
+        return jsonify({"mensaje": "Transacción guardada con éxito"}), 201
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
-# Muestra todas las transacciones visibles
-@transacciones_bp.route('/transacciones', methods=['GET'])
-def obtener_transacciones():
-    transacciones = Transaccion.query.filter_by(visible=True).all()
-    resultado = [{
-        "id": t.id,
-        "descripcion": t.descripcion,
-        "monto": t.monto,
-        "fecha": t.fecha.strftime('%Y-%m-%d'),
-        "categoria": t.categoria,
-        "tipo": t.tipo
-    } for t in transacciones]
-    return jsonify(resultado)
-
-# Oculta la transacción en lugar de eliminarla
-@transacciones_bp.route('/transacciones/<int:id>', methods=['DELETE'])
-def eliminar_transaccion(id):
-    transaccion = Transaccion.query.get(id)
-    if not transaccion:
-        return jsonify({"error": "Transacción no encontrada"}), 404
-    
-    transaccion.visible = False
-    db.session.commit()
-    return jsonify({"mensaje": "Transacción eliminada (oculta) correctamente"})
-
-# Muestra todas las transacciones ocultas
-@transacciones_bp.route('/transacciones/ocultas', methods=['GET'])
-def obtener_transacciones_ocultas():
-    transacciones = Transaccion.query.filter_by(visible=False).all()
-    resultado = [{
-        "id": t.id,
-        "descripcion": t.descripcion,
-        "monto": t.monto,
-        "fecha": t.fecha.strftime('%Y-%m-%d'),
-        "categoria": t.categoria,
-        "tipo": t.tipo
-    } for t in transacciones]
-    return jsonify(resultado)
-
-# Recupera una transacción oculta
-@transacciones_bp.route('/transacciones/recuperar/<int:id>', methods=['PUT'])
-def recuperar_transaccion(id):
-    transaccion = Transaccion.query.get(id)
-    if not transaccion:
-        return jsonify({"error": "Transacción no encontrada"}), 404
-
-    transaccion.visible = True
-    db.session.commit()
-    return jsonify({"mensaje": "Transacción recuperada con éxito"})

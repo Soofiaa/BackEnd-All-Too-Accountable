@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models.usuario import Usuario
-from app.database import db
+from database import db
 from app.utils.seguridad import verificar_password
 
 login_bp = Blueprint('login', __name__)
