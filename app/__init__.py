@@ -1,11 +1,18 @@
 from flask import Flask
 from flask_cors import CORS
+from database import db
 
 def create_app():
     app = Flask(__name__)
-    CORS(app)
 
-    from .models.database import crear_tablas
+    # Configuración de la base de datos
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:prueba123@localhost/all_too_accountable'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    CORS(app)
+    db.init_app(app)
+
+    from database import crear_tablas
     crear_tablas()
     
     from .routes.transacciones import transacciones_bp
@@ -13,5 +20,13 @@ def create_app():
 
     from .routes.usuarios import usuarios_bp
     app.register_blueprint(usuarios_bp, url_prefix='/api/usuarios')
+
+    from .routes.login import login_bp
+    app.register_blueprint(login_bp, url_prefix='/api/usuarios')
+
+    from .routes.categorias import categorias_bp
+    app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
+
+    db.create_all()
 
     return app

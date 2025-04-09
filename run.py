@@ -1,11 +1,12 @@
 from flask import Flask
 from flask_cors import CORS
-from app.database import db
+from database import db
 from app.extensions import mail
 
 from app.routes.usuarios import usuarios_bp
 from app.routes.login import login_bp
 from app.routes.transacciones import transacciones_bp
+from app.routes.categorias import categorias_bp
 
 app = Flask(__name__)
 CORS(app)
@@ -23,18 +24,24 @@ app.config['MAIL_USERNAME'] = 'soofiaa.menzel@gmail.com'
 app.config['MAIL_PASSWORD'] = 'llio ocef kspn nlzj'
 app.config['MAIL_DEFAULT_SENDER'] = 'soofiaa.menzel@gmail.com'
 
-# Inicializar extensiones
 db.init_app(app)
 mail.init_app(app)
 
-# Blueprints
-app.register_blueprint(usuarios_bp)
-app.register_blueprint(login_bp)
-app.register_blueprint(transacciones_bp)
+# 🔧 Mueve los blueprints AQUÍ, después de definir `app`
+app.register_blueprint(usuarios_bp, url_prefix="/api/usuarios")
+app.register_blueprint(login_bp, url_prefix="/api/usuarios")
+app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
+app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
 
 @app.route('/')
 def index():
     return 'Backend All Too Accountable activo'
+
+with app.app_context():
+    db.create_all()
+
+if __name__ == "__main__":
+    app.run(debug=True)
 
 '''
 # PRUEBA PARA ENVIAR CORREOS
@@ -59,9 +66,3 @@ def probar_correo():
     except Exception as e:
         return f"❌ Error al enviar correo: {str(e)}"
 '''
-
-with app.app_context():
-    db.create_all()
-
-if __name__ == "__main__":
-    app.run(debug=True)

@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from app.database import db
+from database import db
 from app.models.usuario import Usuario
 from app.utils.seguridad import hash_password
 import smtplib
