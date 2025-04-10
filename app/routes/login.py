@@ -1,12 +1,14 @@
 from flask import Blueprint, request, jsonify
 from app.models.usuario import Usuario
-from database import db
 from app.utils.seguridad import verificar_password
 
 login_bp = Blueprint('login', __name__)
 
-@login_bp.route('/login', methods=['POST'])
+@login_bp.route('/login', methods=['POST', 'OPTIONS'])
 def login():
+    if request.method == 'OPTIONS':
+        return '', 204
+
     data = request.get_json()
     correo = data.get('correo')
     contrasena = data.get('contrasena')

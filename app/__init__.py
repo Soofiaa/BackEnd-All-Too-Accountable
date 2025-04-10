@@ -26,6 +26,9 @@ def create_app():
 
     from .routes.categorias import categorias_bp
     app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
+    
+    from .routes.gastos_mensuales import gastos_mensuales_bp
+    app.register_blueprint(gastos_mensuales_bp, url_prefix='/api/gastos')
 
     db.create_all()
 
