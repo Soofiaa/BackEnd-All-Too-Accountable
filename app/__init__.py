@@ -14,9 +14,6 @@ def create_app():
 
     from database import crear_tablas
     crear_tablas()
-    
-    from .routes.transacciones import transacciones_bp
-    app.register_blueprint(transacciones_bp, url_prefix='/api/transacciones')
 
     from .routes.usuarios import usuarios_bp
     app.register_blueprint(usuarios_bp, url_prefix='/api/usuarios')
@@ -29,6 +26,9 @@ def create_app():
     
     from .routes.gastos_mensuales import gastos_mensuales_bp
     app.register_blueprint(gastos_mensuales_bp, url_prefix='/api/gastos')
+    
+    from .routes.metas_ahorro import metas_ahorro_bp
+    app.register_blueprint(metas_ahorro_bp, url_prefix='/api/metas')
 
     db.create_all()
 

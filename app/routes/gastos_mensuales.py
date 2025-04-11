@@ -1,3 +1,4 @@
+import datetime
 from flask import Blueprint, request, jsonify
 from app.models.gasto_mensual import GastoMensual, db
 
@@ -14,27 +15,31 @@ def obtener_gastos():
     return jsonify([gasto.to_dict() for gasto in gastos])
 
 # Crear nuevo gasto
-@gastos_mensuales_bp.route('', methods=['POST', 'OPTIONS'])
+@gastos_mensuales_bp.route('', methods=['POST'])
 def crear_gasto():
-    if request.method == 'OPTIONS':
-        return '', 204
-    
     data = request.json
-    campos_obligatorios = ['nombre', 'monto', 'id_usuario']
-    if not all(campo in data for campo in campos_obligatorios):
-        return jsonify({'error': 'Faltan campos obligatorios'}), 400
+
+    nombre = data.get('nombre', '').strip()
+    monto = data.get('monto')
+    dia_pago = data.get('dia_pago')
+    id_usuario = data.get('id_usuario')
+
+    if not nombre or not monto or not dia_pago or not id_usuario:
+        return jsonify({'error': 'Todos los campos son obligatorios'}), 400
 
     nuevo_gasto = GastoMensual(
-        nombre=data['nombre'],
+        nombre=nombre,
         descripcion=data.get('descripcion', ''),
-        monto=float(data['monto']),
-        id_usuario=int(data['id_usuario'])
+        monto=monto,
+        dia_pago=dia_pago,
+        id_usuario=id_usuario
     )
+
     db.session.add(nuevo_gasto)
     db.session.commit()
     return jsonify(nuevo_gasto.to_dict()), 201
 
-# Editar un gasto (solo si pertenece al usuario)
+# Editar un gasto existente
 @gastos_mensuales_bp.route('/<int:id_gasto>', methods=['PUT'])
 def editar_gasto(id_gasto):
     data = request.json
@@ -46,9 +51,19 @@ def editar_gasto(id_gasto):
     if not gasto:
         return jsonify({'error': 'Gasto no encontrado o no autorizado'}), 404
 
-    gasto.nombre = data.get('nombre', gasto.nombre)
-    gasto.descripcion = data.get('descripcion', gasto.descripcion)
-    gasto.monto = float(data.get('monto', gasto.monto))
+    # Extraer y validar campos obligatorios
+    nombre = data.get('nombre', '').strip()
+    monto = data.get('monto')
+    dia_pago = data.get('dia_pago')
+
+    if not nombre or not monto or not dia_pago:
+        return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+
+    # Aplicar cambios
+    gasto.nombre = nombre
+    gasto.descripcion = data.get('descripcion', '')
+    gasto.monto = float(monto)
+    gasto.dia_pago = dia_pago
 
     db.session.commit()
     return jsonify(gasto.to_dict())
