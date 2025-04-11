@@ -32,9 +32,10 @@ def crear_categoria():
     tipo = data.get("tipo")
     id_usuario = data.get("id_usuario")
 
-    # Validación básica
-    if not nombre or not tipo or not id_usuario:
-        return jsonify({"error": "Faltan datos"}), 400
+    # Validación de datos
+    if not nombre or not nombre.strip() or not tipo or not tipo.strip() or not id_usuario:
+        return jsonify({"error": "Todos los campos son obligatorios"}), 400
+
 
     # Validamos que no exista otra categoría igual para ese usuario
     existente = Categoria.query.filter_by(nombre=nombre, id_usuario=id_usuario).first()

@@ -5,9 +5,9 @@ from app.extensions import mail
 
 from app.routes.usuarios import usuarios_bp
 from app.routes.login import login_bp
-from app.routes.transacciones import transacciones_bp
 from app.routes.categorias import categorias_bp
 from app.routes.gastos_mensuales import gastos_mensuales_bp as gastos_bp
+from app.routes.metas_ahorro import metas_ahorro_bp as metas_bp
 
 app = Flask(__name__)
 
@@ -41,9 +41,9 @@ mail.init_app(app)
 # Blueprints registrados con prefijos
 app.register_blueprint(usuarios_bp, url_prefix="/api/usuarios")
 app.register_blueprint(login_bp, url_prefix="/api/usuarios")
-app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
 app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
 app.register_blueprint(gastos_bp, url_prefix="/api/gastos")
+app.register_blueprint(metas_bp, url_prefix="/api/metas")
 
 @app.route('/')
 def index():
