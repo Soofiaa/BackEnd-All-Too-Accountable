@@ -5,4 +5,7 @@ def hash_password(password):
     return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8') 
 
 def verificar_password(password_plana, password_hashed):
-    return bcrypt.checkpw(password_plana.encode('utf-8'), password_hashed.encode('utf-8'))
+    if isinstance(password_hashed, str):
+        password_hashed = password_hashed.encode('utf-8')
+    return bcrypt.checkpw(password_plana.encode('utf-8'), password_hashed)
+

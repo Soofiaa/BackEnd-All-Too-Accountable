@@ -29,6 +29,12 @@ def create_app():
     
     from .routes.metas_ahorro import metas_ahorro_bp
     app.register_blueprint(metas_ahorro_bp, url_prefix='/api/metas')
+    
+    from .routes.recuperar_contrasena import recuperar_contrasena_bp
+    app.register_blueprint(recuperar_contrasena_bp, url_prefix='/api/recuperar_contrasena')
+    
+    from .routes.restablecer_contrasena import restablecer_contrasena_bp
+    app.register_blueprint(restablecer_contrasena_bp, url_prefix='/api/restablecer_contrasena')
 
     db.create_all()
 
