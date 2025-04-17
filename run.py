@@ -11,6 +11,7 @@ from app.routes.gastos_mensuales import gastos_mensuales_bp as gastos_bp
 from app.routes.metas_ahorro import metas_ahorro_bp as metas_bp
 from app.routes.recuperar_contrasena import recuperar_contrasena_bp
 from app.routes.restablecer_contrasena import restablecer_contrasena_bp
+from app.routes.transacciones import transacciones_bp
 
 app = Flask(__name__)
 
@@ -41,6 +42,7 @@ app.register_blueprint(gastos_bp, url_prefix="/api/gastos")
 app.register_blueprint(metas_bp, url_prefix="/api/metas")
 app.register_blueprint(recuperar_contrasena_bp, url_prefix="/api/recuperar_contrasena")
 app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_contrasena")
+app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
 
 @app.route('/')
 def index():

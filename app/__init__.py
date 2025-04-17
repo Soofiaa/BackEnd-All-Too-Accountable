@@ -35,6 +35,9 @@ def create_app():
     
     from .routes.restablecer_contrasena import restablecer_contrasena_bp
     app.register_blueprint(restablecer_contrasena_bp, url_prefix='/api/restablecer_contrasena')
+    
+    from .routes.transacciones import transacciones_bp
+    app.register_blueprint(transacciones_bp, url_prefix='/api/transacciones')
 
     db.create_all()
 
