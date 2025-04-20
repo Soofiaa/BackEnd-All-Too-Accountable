@@ -10,7 +10,7 @@ transacciones_bp = Blueprint("transacciones", __name__)
 @transacciones_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_transacciones(id_usuario):
     transacciones = db.session.execute(
-        db.select(Transaccion).filter_by(id_usuario=id_usuario, visible=True)
+        db.select(Transaccion).filter_by(id_usuario=id_usuario)
     ).scalars().all()
 
     resultado = [
@@ -27,24 +27,60 @@ def obtener_transacciones(id_usuario):
             "totalCredito": float(t.total_credito or 0),
             "tipo": t.tipo,
             "repetido": t.se_repite,
+            "imagen": f"/imagenes/{t.imagen}" if t.imagen else None,
+            "visible": t.visible  # 👈 AÑADE ESTA LÍNEA
         }
         for t in transacciones
     ]
 
+
     return jsonify(resultado)
+
+@transacciones_bp.route('/categorias/<int:id_usuario>', methods=['GET'])
+def obtener_categorias(id_usuario):
+    try:
+        categorias = db.session.execute(
+            db.select(Categoria).where(
+                (Categoria.id_usuario == id_usuario) | (Categoria.es_general == True)
+            )
+        ).scalars().all()
+
+        resultado = [
+            { "nombre": c.nombre }
+            for c in categorias
+        ]
+
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @transacciones_bp.route("/", methods=["POST"])
 def crear_transaccion():
+    from datetime import datetime
+    import base64
+    import os
+
     data = request.json
+    CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
+    os.makedirs(CARPETA_IMAGENES, exist_ok=True)
 
     try:
+        # Procesar imagen si viene
+        imagen_filename = None
+        if data.get("imagen"):
+            imagen_bytes = base64.b64decode(data["imagen"])
+            imagen_filename = f"transaccion_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            ruta_imagen = os.path.join(CARPETA_IMAGENES, imagen_filename)
+            with open(ruta_imagen, 'wb') as f:
+                f.write(imagen_bytes)
+
         nueva = Transaccion(
             fecha=datetime.strptime(data["fecha"], "%Y-%m-%d").date(),
             monto=data["monto"],
             categoria=data["categoria"],
             descripcion=data["descripcion"],
             tipo_pago=data["tipoPago"],
-            imagen=base64.b64decode(data["imagen"]) if data.get("imagen") else None,
+            imagen=imagen_filename,
             cuotas=data.get("cuotas", 1),
             interes=data.get("interes", 0),
             valor_cuota=data.get("valorCuota"),
@@ -58,7 +94,90 @@ def crear_transaccion():
         db.session.add(nueva)
         db.session.commit()
 
-        return jsonify({"mensaje": "Transacción guardada correctamente"}), 201
+        return jsonify({
+            "id_transaccion": nueva.id_transaccion,
+            "fecha": nueva.fecha.strftime("%Y-%m-%d"),
+            "monto": nueva.monto,
+            "categoria": nueva.categoria,
+            "descripcion": nueva.descripcion,
+            "tipoPago": nueva.tipo_pago,
+            "imagen": f"/imagenes/{nueva.imagen}" if nueva.imagen else None,
+            "cuotas": nueva.cuotas,
+            "interes": nueva.interes,
+            "valorCuota": nueva.valor_cuota,
+            "totalCredito": nueva.total_credito,
+            "tipo": nueva.tipo,
+            "repetido": nueva.se_repite,
+            "id_usuario": nueva.id_usuario
+        }), 201
 
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@transacciones_bp.route("/<int:id_transaccion>", methods=["PUT"])
+def actualizar_transaccion(id_transaccion):
+    from datetime import datetime
+    import base64
+    import os
+
+    data = request.json
+    transaccion = db.session.get(Transaccion, id_transaccion)
+
+    if not transaccion:
+        return jsonify({"error": "Transacción no encontrada"}), 404
+
+    try:
+        transaccion.fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+        transaccion.monto = data["monto"]
+        transaccion.categoria = data["categoria"]
+        transaccion.descripcion = data["descripcion"]
+        transaccion.tipo_pago = data["tipoPago"]
+        transaccion.cuotas = data.get("cuotas", 1)
+        transaccion.interes = data.get("interes", 0)
+        transaccion.valor_cuota = data.get("valorCuota")
+        transaccion.total_credito = data.get("totalCredito")
+        transaccion.tipo = data["tipo"]
+        transaccion.se_repite = data.get("repetido", False)
+
+        # Imagen nueva (si se adjunta otra)
+        if data.get("imagen"):
+            imagen_bytes = base64.b64decode(data["imagen"])
+            imagen_filename = f"transaccion_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
+            carpeta = os.path.join(os.getcwd(), 'imagenes_transacciones')
+            os.makedirs(carpeta, exist_ok=True)
+            with open(os.path.join(carpeta, imagen_filename), 'wb') as f:
+                f.write(imagen_bytes)
+            transaccion.imagen = imagen_filename
+
+        db.session.commit()
+
+        return jsonify({"mensaje": "Transacción actualizada correctamente"}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@transacciones_bp.route("/<int:id_transaccion>/eliminar", methods=["PUT"])
+def eliminar_transaccion(id_transaccion):
+    transaccion = db.session.get(Transaccion, id_transaccion)
+    if not transaccion:
+        return jsonify({"error": "Transacción no encontrada"}), 404
+
+    try:
+        transaccion.visible = False
+        db.session.commit()
+        return jsonify({"mensaje": "Transacción eliminada"}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+@transacciones_bp.route("/<int:id_transaccion>/recuperar", methods=["PUT"])
+def recuperar_transaccion(id_transaccion):
+    transaccion = db.session.get(Transaccion, id_transaccion)
+    if not transaccion:
+        return jsonify({"error": "Transacción no encontrada"}), 404
+
+    try:
+        transaccion.visible = True
+        db.session.commit()
+        return jsonify({"mensaje": "Transacción recuperada"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400

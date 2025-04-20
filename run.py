@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, send_from_directory
 from flask_cors import CORS
 from database import db
 from app.extensions import mail
@@ -16,6 +16,10 @@ from app.routes.transacciones import transacciones_bp
 app = Flask(__name__)
 
 CORS(app, origins="http://localhost:5173", supports_credentials=True)
+
+@app.route('/imagenes/<filename>')
+def obtener_imagen(filename):
+    return send_from_directory('imagenes_transacciones', filename)
 
 # Configuración base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
