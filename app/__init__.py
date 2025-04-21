@@ -38,6 +38,9 @@ def create_app():
     
     from .routes.transacciones import transacciones_bp
     app.register_blueprint(transacciones_bp, url_prefix='/api/transacciones')
+    
+    from .routes.pagos_pendientes import pagos_pendientes_bp
+    app.register_blueprint(pagos_pendientes_bp, url_prefix='/api/pagos-pendientes')
 
     db.create_all()
 

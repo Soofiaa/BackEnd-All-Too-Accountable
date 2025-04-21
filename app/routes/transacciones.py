@@ -1,9 +1,12 @@
+import os
 from flask import Blueprint, request, jsonify
 from database import db
 from app.models.categoria import Categoria
 from app.models.transaccion import Transaccion
 from datetime import datetime
 import base64
+from app.models.pago_pendiente import PagoPendiente
+
 
 transacciones_bp = Blueprint("transacciones", __name__)
 
@@ -56,9 +59,6 @@ def obtener_categorias(id_usuario):
 
 @transacciones_bp.route("/", methods=["POST"])
 def crear_transaccion():
-    from datetime import datetime
-    import base64
-    import os
 
     data = request.json
     CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
@@ -94,6 +94,18 @@ def crear_transaccion():
         db.session.add(nueva)
         db.session.commit()
 
+        # Crear pago pendiente si es con tarjeta de crédito en cuotas
+        if nueva.tipo_pago == "credito" and nueva.cuotas > 1:
+            pago = PagoPendiente(
+                id_usuario=nueva.id_usuario,
+                id_transaccion=nueva.id_transaccion,
+                descripcion=nueva.descripcion,
+                fecha=nueva.fecha,
+                cuotas=nueva.cuotas,
+                valorCuota=nueva.valor_cuota
+            )
+            pago.guardar()
+
         return jsonify({
             "id_transaccion": nueva.id_transaccion,
             "fecha": nueva.fecha.strftime("%Y-%m-%d"),
@@ -113,6 +125,7 @@ def crear_transaccion():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 @transacciones_bp.route("/<int:id_transaccion>", methods=["PUT"])
 def actualizar_transaccion(id_transaccion):
