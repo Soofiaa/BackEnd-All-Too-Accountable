@@ -126,7 +126,6 @@ def crear_transaccion():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
-
 @transacciones_bp.route("/<int:id_transaccion>", methods=["PUT"])
 def actualizar_transaccion(id_transaccion):
     from datetime import datetime
@@ -152,15 +151,25 @@ def actualizar_transaccion(id_transaccion):
         transaccion.tipo = data["tipo"]
         transaccion.se_repite = data.get("repetido", False)
 
-        # Imagen nueva (si se adjunta otra)
-        if data.get("imagen"):
-            imagen_bytes = base64.b64decode(data["imagen"])
-            imagen_filename = f"transaccion_{datetime.now().strftime('%Y%m%d%H%M%S')}.jpg"
-            carpeta = os.path.join(os.getcwd(), 'imagenes_transacciones')
-            os.makedirs(carpeta, exist_ok=True)
-            with open(os.path.join(carpeta, imagen_filename), 'wb') as f:
-                f.write(imagen_bytes)
-            transaccion.imagen = imagen_filename
+        CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
+        os.makedirs(CARPETA_IMAGENES, exist_ok=True)
+
+        # Eliminar imagen si se indica como null o vacía
+        # Procesar imagen
+        if "imagen" in data:
+            if data["imagen"] == "" or data["imagen"] is None:
+                transaccion.imagen = None
+            else:
+                imagen_bytes = base64.b64decode(data["imagen"])
+                if "imagen" in data and isinstance(data["imagen"], str):
+                    if data.get("nombre_archivo"):
+                        extension = data["nombre_archivo"].split(".")[-1].lower()
+                imagen_filename = f"transaccion_{datetime.now().strftime('%Y%m%d%H%M%S')}.{extension}"
+                ruta_imagen = os.path.join(CARPETA_IMAGENES, imagen_filename)
+                with open(ruta_imagen, 'wb') as f:
+                    f.write(imagen_bytes)
+                transaccion.imagen = imagen_filename
+
 
         db.session.commit()
 
