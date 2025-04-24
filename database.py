@@ -2,7 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask import Flask
 from flask_cors import CORS
 import pymysql
-from pymysql.cursors import DictCursor  # 👈 Esto es clave
+from pymysql.cursors import DictCursor
 
 app = Flask(__name__)
 CORS(app)
@@ -20,5 +20,5 @@ def conectar_bd():
         user="root",
         password="***REMOVED***",
         database="all_too_accountable",
-        cursorclass=DictCursor  # ✅ Esto permite acceder a resultados como diccionario
+        cursorclass=DictCursor
     )

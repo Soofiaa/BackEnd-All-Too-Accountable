@@ -13,21 +13,44 @@ class PagoPendiente:
     def guardar(self):
         db = conectar_bd()
         cursor = db.cursor()
-        cursor.execute(
-            """
-            INSERT INTO pagos_pendientes (id_usuario, id_transaccion, descripcion, fecha, cuotas, valorCuota, cuotasPagadas)
-            VALUES (%s, %s, %s, %s, %s, %s, %s)
-            """,
-            (self.id_usuario, self.id_transaccion, self.descripcion, self.fecha, self.cuotas, self.valorCuota, self.cuotasPagadas)
-        )
-        db.commit()
+        try:
+            print("💾 Insertando con:", self.__dict__)
+            cursor.execute(
+                "INSERT INTO pagos_pendientes (id_usuario, id_transaccion, descripcion, fecha, cuotas, cuotasPagadas, valorCuota) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                (
+                    int(self.id_usuario),
+                    int(self.id_transaccion),
+                    str(self.descripcion),
+                    self.fecha,  # ya es tipo date
+                    int(self.cuotas),
+                    int(0),
+                    float(self.valorCuota)
+                )
+            )
+            db.commit()
+            print("✅ Pago pendiente insertado correctamente")
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
 
     @staticmethod
-    def obtener_todos():
+    def obtener_por_usuario(id_usuario):
+        print("🧪 Obteniendo pagos para usuario:", id_usuario)
         db = conectar_bd()
-        cursor = db.cursor(dictionary=True)
-        cursor.execute("SELECT * FROM pagos_pendientes WHERE cuotasPagadas < cuotas")
-        return cursor.fetchall()
+        cursor = db.cursor()
+
+        try:
+            cursor.execute(
+                "SELECT * FROM pagos_pendientes WHERE id_usuario = %s AND cuotasPagadas < cuotas",
+                (id_usuario,)
+            )
+            resultados = cursor.fetchall()
+            print("🟢 Resultados obtenidos:", resultados)
+            return resultados
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            return []
 
     @staticmethod
     def actualizar_cuotas(id_pago, nuevas_cuotas_pagadas):

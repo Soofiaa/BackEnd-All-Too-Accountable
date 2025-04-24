@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from database import db
 from app.extensions import mail
+from datetime import timedelta
 
 # Blueprints
 from app.routes.usuarios import usuarios_bp
@@ -13,10 +14,11 @@ from app.routes.recuperar_contrasena import recuperar_contrasena_bp
 from app.routes.restablecer_contrasena import restablecer_contrasena_bp
 from app.routes.transacciones import transacciones_bp
 from app.routes.pagos_pendientes import pagos_pendientes_bp
+from app.routes.detalles_usuarios import detalles_usuario_bp
 
 app = Flask(__name__)
 
-CORS(app, origins="http://localhost:5173", supports_credentials=True)
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
 
 @app.route('/imagenes/<filename>')
 def obtener_imagen(filename):
@@ -49,6 +51,7 @@ app.register_blueprint(recuperar_contrasena_bp, url_prefix="/api/recuperar_contr
 app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_contrasena")
 app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
 app.register_blueprint(pagos_pendientes_bp, url_prefix="/api/pagos_pendientes")
+app.register_blueprint(detalles_usuario_bp, url_prefix="/api/detalles_usuario")
 
 @app.route('/')
 def index():

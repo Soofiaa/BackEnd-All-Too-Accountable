@@ -57,8 +57,12 @@ def obtener_categorias(id_usuario):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-@transacciones_bp.route("/", methods=["POST"])
+@transacciones_bp.route("", methods=["POST"])
 def crear_transaccion():
+    from datetime import datetime
+    import base64
+    import os
+    from models.pago_pendiente import PagoPendiente
 
     data = request.json
     CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
@@ -76,15 +80,15 @@ def crear_transaccion():
 
         nueva = Transaccion(
             fecha=datetime.strptime(data["fecha"], "%Y-%m-%d").date(),
-            monto=data["monto"],
+            monto=float(data["monto"]),
             categoria=data["categoria"],
             descripcion=data["descripcion"],
             tipo_pago=data["tipoPago"],
             imagen=imagen_filename,
-            cuotas=data.get("cuotas", 1),
-            interes=data.get("interes", 0),
-            valor_cuota=data.get("valorCuota"),
-            total_credito=data.get("totalCredito"),
+            cuotas=int(data.get("cuotas", 1)),
+            interes=float(data.get("interes", 0)),
+            valor_cuota=float(data.get("valorCuota", 0)),
+            total_credito=float(data.get("totalCredito", 0)),
             tipo=data["tipo"],
             se_repite=data.get("repetido", False),
             id_usuario=data["id_usuario"],
@@ -94,8 +98,10 @@ def crear_transaccion():
         db.session.add(nueva)
         db.session.commit()
 
-        # Crear pago pendiente si es con tarjeta de crédito en cuotas
-        if nueva.tipo_pago == "credito" and nueva.cuotas > 1:
+        # 💳 Si es pago con crédito en cuotas, agregar a pagos_pendientes
+        if nueva.tipo_pago == "credito" and int(nueva.cuotas) > 1:
+            print("✅ Se insertará en pagos_pendientes")
+
             pago = PagoPendiente(
                 id_usuario=nueva.id_usuario,
                 id_transaccion=nueva.id_transaccion,
