@@ -5,22 +5,38 @@ from database import conectar_bd
 
 detalles_usuario_bp = Blueprint('detalles_usuario', __name__)
 
+from app.models.detalle_usuario import DetallesUsuario
+
 @detalles_usuario_bp.route("/api/detalles_usuario", methods=["GET"])
 def obtener_detalles_usuario():
     id_usuario = request.args.get("id_usuario")
+    print("📥 Recibida petición para id_usuario:", id_usuario)
+
     db = conectar_bd()
-    cursor = db.cursor(dictionary=True)
+    cursor = db.cursor()
 
+    # ✅ Consulta a la BD
     cursor.execute("SELECT salario, ahorros, dia_facturacion FROM detalles_usuario WHERE id_usuario = %s", (id_usuario,))
-    detalles = cursor.fetchone()
+    resultado = cursor.fetchone()
 
+    print("🧪 RAW resultado desde BD:", resultado)
+
+    if not resultado:
+        nuevo = DetallesUsuario(id_usuario, 0, 0, 1)
+        nuevo.guardar()
+        resultado = (0, 0, 1)
+
+    detalles_dict = resultado
+
+    # ✅ Consulta de nombre
     cursor.execute("SELECT nombre_usuario FROM usuarios WHERE id_usuario = %s", (id_usuario,))
     usuario = cursor.fetchone()
+    usuario_dict = usuario if usuario else {}
 
-    if detalles and usuario:
-        return jsonify({**detalles, **usuario})
-    else:
-        return jsonify({"error": "Usuario no encontrado"}), 404
+    print("🧪 DEBUG → Detalles:", detalles_dict)
+    print("🧪 DEBUG → Usuario:", usuario_dict)
+
+    return jsonify({**detalles_dict, **usuario_dict})
 
 
 @detalles_usuario_bp.route("/api/actualizar_salario", methods=["POST"])

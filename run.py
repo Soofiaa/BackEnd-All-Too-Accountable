@@ -2,7 +2,6 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from database import db
 from app.extensions import mail
-from datetime import timedelta
 
 # Blueprints
 from app.routes.usuarios import usuarios_bp
@@ -18,11 +17,8 @@ from app.routes.detalles_usuarios import detalles_usuario_bp
 
 app = Flask(__name__)
 
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}}, supports_credentials=True)
-
-@app.route('/imagenes/<filename>')
-def obtener_imagen(filename):
-    return send_from_directory('imagenes_transacciones', filename)
+# Activar CORS 
+CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # Configuración base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
@@ -34,14 +30,14 @@ app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USE_SSL'] = False
 app.config['MAIL_USERNAME'] = 'soofiaa.menzel@gmail.com'
-app.config['MAIL_PASSWORD'] = '***REMOVED***'  # clave de aplicación
+app.config['MAIL_PASSWORD'] = '***REMOVED***'
 app.config['MAIL_DEFAULT_SENDER'] = 'soofiaa.menzel@gmail.com'
 
-# Inicialización
+# Inicializar extensiones
 db.init_app(app)
 mail.init_app(app)
 
-# Registro de rutas
+# Registrar blueprints
 app.register_blueprint(usuarios_bp, url_prefix="/api/usuarios")
 app.register_blueprint(login_bp, url_prefix="/api/usuarios")
 app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
@@ -51,7 +47,7 @@ app.register_blueprint(recuperar_contrasena_bp, url_prefix="/api/recuperar_contr
 app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_contrasena")
 app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
 app.register_blueprint(pagos_pendientes_bp, url_prefix="/api/pagos_pendientes")
-app.register_blueprint(detalles_usuario_bp, url_prefix="/api/detalles_usuario")
+app.register_blueprint(detalles_usuario_bp)
 
 @app.route('/')
 def index():
