@@ -2,6 +2,7 @@ from flask import Flask, send_from_directory
 from flask_cors import CORS
 from database import db
 from app.extensions import mail
+import os
 
 # Blueprints
 from app.routes.usuarios import usuarios_bp
@@ -52,6 +53,17 @@ app.register_blueprint(detalles_usuario_bp)
 @app.route('/')
 def index():
     return 'Backend All Too Accountable activo'
+
+# Servir archivos del directorio uploads
+@app.route('/uploads/<path:filename>')
+def descargar_archivo(filename):
+    uploads_dir = os.path.join(os.getcwd(), 'uploads')
+    return send_from_directory(uploads_dir, filename)
+
+@app.route('/imagenes/<path:filename>')
+def descargar_imagen(filename):
+    imagenes_dir = os.path.join(os.getcwd(), 'imagenes_transacciones')
+    return send_from_directory(imagenes_dir, filename)
 
 with app.app_context():
     db.create_all()

@@ -8,4 +8,5 @@ class Categoria(db.Model):
     tipo = db.Column(db.String(20), nullable=False)  # Ingreso / Gasto / Ambos
     id_usuario = db.Column(db.Integer, nullable=True)
     es_general = db.Column(db.Boolean, default=False)
+    monto_limite = db.Column(db.Float, default=0)
 

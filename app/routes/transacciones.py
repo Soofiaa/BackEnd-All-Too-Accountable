@@ -5,42 +5,11 @@ from app.models.categoria import Categoria
 from app.models.transaccion import Transaccion
 from datetime import datetime
 import base64
-from app.models.pago_pendiente import PagoPendiente
-
 
 transacciones_bp = Blueprint("transacciones", __name__)
 
-@transacciones_bp.route('/<int:id_usuario>', methods=['GET'])
-def obtener_transacciones(id_usuario):
-    transacciones = db.session.execute(
-        db.select(Transaccion).filter_by(id_usuario=id_usuario)
-    ).scalars().all()
-
-    resultado = [
-        {
-            "id": t.id_transaccion,
-            "fecha": t.fecha,
-            "monto": float(t.monto),
-            "categoria": t.categoria,
-            "descripcion": t.descripcion,
-            "tipoPago": t.tipo_pago,
-            "cuotas": t.cuotas,
-            "interes": float(t.interes),
-            "valorCuota": float(t.valor_cuota or 0),
-            "totalCredito": float(t.total_credito or 0),
-            "tipo": t.tipo,
-            "repetido": t.se_repite,
-            "imagen": f"/imagenes/{t.imagen}" if t.imagen else None,
-            "visible": t.visible  # 👈 AÑADE ESTA LÍNEA
-        }
-        for t in transacciones
-    ]
-
-
-    return jsonify(resultado)
-
 @transacciones_bp.route('/categorias/<int:id_usuario>', methods=['GET'])
-def obtener_categorias(id_usuario):
+def obtener_categorias_transacciones(id_usuario):
     try:
         categorias = db.session.execute(
             db.select(Categoria).where(
@@ -49,7 +18,10 @@ def obtener_categorias(id_usuario):
         ).scalars().all()
 
         resultado = [
-            { "nombre": c.nombre }
+            {
+                "nombre": c.nombre,
+                "monto_limite": float(c.monto_limite or 0)
+            }
             for c in categorias
         ]
 
@@ -57,12 +29,45 @@ def obtener_categorias(id_usuario):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@transacciones_bp.route('/<int:id_usuario>', methods=['GET'])
+def obtener_transacciones_usuario(id_usuario):
+    try:
+        transacciones = db.session.execute(
+            db.select(Transaccion).where(Transaccion.id_usuario == id_usuario)
+        ).scalars().all()
+
+        resultado = [
+            {
+                "id_transaccion": t.id_transaccion,
+                "fecha": t.fecha,
+                "monto": t.monto,
+                "categoria": t.categoria,
+                "descripcion": t.descripcion,
+                "tipoPago": t.tipo_pago,
+                "imagen": t.imagen,
+                "cuotas": t.cuotas,
+                "interes": t.interes,
+                "valorCuota": t.valor_cuota,
+                "totalCredito": t.total_credito,
+                "tipo": t.tipo,
+                "repetido": t.se_repite,
+                "id_usuario": t.id_usuario,
+                "visible": t.visible
+            }
+            for t in transacciones
+        ]
+
+        return jsonify(resultado)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 @transacciones_bp.route("", methods=["POST"])
 def crear_transaccion():
     from datetime import datetime
     import base64
     import os
-    from models.pago_pendiente import PagoPendiente
+    from app.models.pago_pendiente import PagoPendiente
 
     data = request.json
     CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')

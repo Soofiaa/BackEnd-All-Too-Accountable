@@ -1,6 +1,8 @@
 import datetime
 from flask import Blueprint, request, jsonify
 from app.models.gasto_mensual import GastoMensual, db
+from database import conectar_bd
+
 
 gastos_mensuales_bp = Blueprint('gastos', __name__)
 
@@ -13,7 +15,6 @@ def obtener_gastos():
 
     gastos = GastoMensual.query.filter_by(id_usuario=id_usuario).all()
     return jsonify([gasto.to_dict() for gasto in gastos])
-
 # Crear nuevo gasto
 @gastos_mensuales_bp.route('', methods=['POST'])
 def crear_gasto():
@@ -38,6 +39,7 @@ def crear_gasto():
     db.session.add(nuevo_gasto)
     db.session.commit()
     return jsonify(nuevo_gasto.to_dict()), 201
+
 
 # Editar un gasto existente
 @gastos_mensuales_bp.route('/<int:id_gasto>', methods=['PUT'])
@@ -67,6 +69,7 @@ def editar_gasto(id_gasto):
 
     db.session.commit()
     return jsonify(gasto.to_dict())
+
 
 # Eliminar un gasto
 @gastos_mensuales_bp.route('/<int:id_gasto>', methods=['DELETE'])

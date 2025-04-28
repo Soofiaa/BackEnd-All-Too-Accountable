@@ -19,7 +19,8 @@ def obtener_categorias(id_usuario):
             "id": c.id_categoria,
             "nombre": c.nombre,
             "tipo": c.tipo,
-            "editable": c.id_usuario is not None  # Solo si no es "General"
+            "editable": c.id_usuario is not None,
+            "monto_limite": c.monto_limite
         } for c in categorias
     ]
     return jsonify(resultado), 200
@@ -31,6 +32,7 @@ def crear_categoria():
     nombre = data.get("nombre")
     tipo = data.get("tipo")
     id_usuario = data.get("id_usuario")
+    monto_limite = data.get("monto_limite", 0)
 
     # Validación de datos
     if not nombre or not nombre.strip() or not tipo or not tipo.strip() or not id_usuario:
@@ -42,7 +44,7 @@ def crear_categoria():
     if existente:
         return jsonify({"error": "Ya existe una categoría con ese nombre"}), 400
 
-    nueva = Categoria(nombre=nombre, tipo=tipo, id_usuario=id_usuario)
+    nueva = Categoria(nombre=nombre, tipo=tipo, id_usuario=id_usuario, monto_limite=monto_limite)
     db.session.add(nueva)
     db.session.commit()
 
@@ -62,6 +64,7 @@ def editar_categoria(id):
     data = request.get_json()
     categoria.nombre = data.get("nombre", categoria.nombre)
     categoria.tipo = data.get("tipo", categoria.tipo)
+    categoria.monto_limite = data.get("monto_limite", categoria.monto_limite)
     db.session.commit()
 
     return jsonify({"mensaje": "Categoría actualizada"}), 200
