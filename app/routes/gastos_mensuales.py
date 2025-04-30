@@ -38,6 +38,30 @@ def crear_gasto():
 
     db.session.add(nuevo_gasto)
     db.session.commit()
+    
+    # También insertar como transacción
+    from app.models.transaccion import Transaccion
+    from datetime import date
+
+    nueva_transaccion = Transaccion(
+        fecha=date.today(),
+        monto=nuevo_gasto.monto,
+        categoria="Gasto mensual",           # Categoría fija
+        descripcion=nuevo_gasto.nombre,      # O puedes usar el campo descripción si prefieres
+        tipo_pago="debito",
+        imagen=None,
+        cuotas=1,
+        interes=0,
+        valor_cuota=0,
+        total_credito=0,
+        tipo="gasto",
+        id_usuario=nuevo_gasto.id_usuario,
+        visible=True
+    )
+
+    db.session.add(nueva_transaccion)
+    db.session.commit()
+
     return jsonify(nuevo_gasto.to_dict()), 201
 
 

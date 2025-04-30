@@ -40,17 +40,25 @@ class PagoPendiente:
         cursor = db.cursor()
 
         try:
-            cursor.execute(
-                "SELECT * FROM pagos_pendientes WHERE id_usuario = %s AND cuotasPagadas < cuotas",
-                (id_usuario,)
-            )
-            resultados = cursor.fetchall()
-            print("🟢 Resultados obtenidos:", resultados)
-            return resultados
+            cursor.execute("""
+                SELECT p.id_pago, p.id_usuario, p.id_transaccion, p.descripcion, p.fecha, p.cuotas, 
+                    p.cuotasPagadas, p.valorCuota
+                FROM pagos_pendientes p
+                JOIN transacciones t ON p.id_transaccion = t.id_transaccion
+                WHERE p.id_usuario = %s
+                AND p.cuotasPagadas < p.cuotas
+                AND t.visible = 1
+            """, (id_usuario,))
+
+            filas = cursor.fetchall()
+            print("✅ Resultados reales:", filas)
+            return filas
+
         except Exception as e:
             import traceback
             traceback.print_exc()
             return []
+
 
     @staticmethod
     def actualizar_cuotas(id_pago, nuevas_cuotas_pagadas):

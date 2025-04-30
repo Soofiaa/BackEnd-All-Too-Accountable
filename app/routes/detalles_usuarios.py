@@ -2,6 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from database import conectar_bd
+from app.models.ahorro import MovimientoAhorro
 
 detalles_usuario_bp = Blueprint('detalles_usuario', __name__)
 
@@ -15,8 +16,10 @@ def obtener_detalles_usuario():
     db = conectar_bd()
     cursor = db.cursor()
 
-    # ✅ Consulta a la BD
-    cursor.execute("SELECT salario, ahorros, dia_facturacion FROM detalles_usuario WHERE id_usuario = %s", (id_usuario,))
+    MovimientoAhorro.crear_predeterminado_si_no_existe(id_usuario)
+    
+    # Consulta a la BD
+    cursor.execute("SELECT salario, dia_facturacion FROM detalles_usuario WHERE id_usuario = %s", (id_usuario,))
     resultado = cursor.fetchone()
 
     print("🧪 RAW resultado desde BD:", resultado)
@@ -28,7 +31,7 @@ def obtener_detalles_usuario():
 
     detalles_dict = resultado
 
-    # ✅ Consulta de nombre
+    # Consulta de nombre
     cursor.execute("SELECT nombre_usuario FROM usuarios WHERE id_usuario = %s", (id_usuario,))
     usuario = cursor.fetchone()
     usuario_dict = usuario if usuario else {}
@@ -52,19 +55,6 @@ def actualizar_salario():
 
     return jsonify({"mensaje": "Salario actualizado correctamente"})
 
-
-@detalles_usuario_bp.route("/api/actualizar_ahorros", methods=["POST"])
-def actualizar_ahorros():
-    data = request.json
-    id_usuario = data.get("id_usuario")
-    nuevos_ahorros = data.get("ahorros")
-
-    db = conectar_bd()
-    cursor = db.cursor()
-    cursor.execute("UPDATE detalles_usuario SET ahorros = %s WHERE id_usuario = %s", (nuevos_ahorros, id_usuario))
-    db.commit()
-
-    return jsonify({"mensaje": "Ahorros actualizados correctamente"})
 
 @detalles_usuario_bp.route("/api/actualizar_nombre", methods=["POST"])
 def actualizar_nombre_usuario():

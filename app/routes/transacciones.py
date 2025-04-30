@@ -29,6 +29,7 @@ def obtener_categorias_transacciones(id_usuario):
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 @transacciones_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_transacciones_usuario(id_usuario):
     try:
@@ -36,29 +37,30 @@ def obtener_transacciones_usuario(id_usuario):
             db.select(Transaccion).where(Transaccion.id_usuario == id_usuario)
         ).scalars().all()
 
-        resultado = [
-            {
+        resultado = []
+        for t in transacciones:
+            resultado.append({
                 "id_transaccion": t.id_transaccion,
-                "fecha": t.fecha,
-                "monto": t.monto,
+                "fecha": t.fecha if isinstance(t.fecha, str) else t.fecha.strftime("%Y-%m-%d") if t.fecha else None,
+                "monto": float(t.monto),
                 "categoria": t.categoria,
                 "descripcion": t.descripcion,
                 "tipoPago": t.tipo_pago,
-                "imagen": t.imagen,
+                "imagen": f"/imagenes/{t.imagen}" if t.imagen else None,
                 "cuotas": t.cuotas,
                 "interes": t.interes,
-                "valorCuota": t.valor_cuota,
-                "totalCredito": t.total_credito,
+                "valorCuota": float(t.valor_cuota or 0),
+                "totalCredito": float(t.total_credito or 0),
                 "tipo": t.tipo,
-                "repetido": t.se_repite,
                 "id_usuario": t.id_usuario,
                 "visible": t.visible
-            }
-            for t in transacciones
-        ]
+            })
 
         return jsonify(resultado)
+
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
 
@@ -95,7 +97,6 @@ def crear_transaccion():
             valor_cuota=float(data.get("valorCuota", 0)),
             total_credito=float(data.get("totalCredito", 0)),
             tipo=data["tipo"],
-            se_repite=data.get("repetido", False),
             id_usuario=data["id_usuario"],
             visible=True
         )
@@ -130,7 +131,6 @@ def crear_transaccion():
             "valorCuota": nueva.valor_cuota,
             "totalCredito": nueva.total_credito,
             "tipo": nueva.tipo,
-            "repetido": nueva.se_repite,
             "id_usuario": nueva.id_usuario
         }), 201
 
@@ -160,7 +160,6 @@ def actualizar_transaccion(id_transaccion):
         transaccion.valor_cuota = data.get("valorCuota")
         transaccion.total_credito = data.get("totalCredito")
         transaccion.tipo = data["tipo"]
-        transaccion.se_repite = data.get("repetido", False)
 
         CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
         os.makedirs(CARPETA_IMAGENES, exist_ok=True)

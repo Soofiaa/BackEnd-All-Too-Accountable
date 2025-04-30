@@ -15,10 +15,13 @@ from app.routes.restablecer_contrasena import restablecer_contrasena_bp
 from app.routes.transacciones import transacciones_bp
 from app.routes.pagos_pendientes import pagos_pendientes_bp
 from app.routes.detalles_usuarios import detalles_usuario_bp
+from app.routes.ahorros import mov_ahorro_bp
+from app.routes.chat_ia import chat_ia_bp
 
 app = Flask(__name__)
 
 # Activar CORS 
+CORS(app, supports_credentials=True)
 CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
 
 # Configuración base de datos
@@ -49,6 +52,8 @@ app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_c
 app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
 app.register_blueprint(pagos_pendientes_bp, url_prefix="/api/pagos_pendientes")
 app.register_blueprint(detalles_usuario_bp)
+app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
+app.register_blueprint(chat_ia_bp, url_prefix="/api")
 
 @app.route('/')
 def index():

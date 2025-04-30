@@ -45,6 +45,12 @@ def create_app():
     from .routes.detalles_usuarios import detalles_usuario_bp
     app.register_blueprint(detalles_usuario_bp, url_prefix='/api/detalles_usuario')
 
+    from .routes.ahorros import mov_ahorro_bp
+    app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
+    
+    from app.routes.chat_ia import chat_ia_bp
+    app.register_blueprint(chat_ia_bp, url_prefix="/api")
+
     db.create_all()
 
     return app
