@@ -20,5 +20,5 @@ def conectar_bd():
         user="root",
         password="***REMOVED***",
         database="all_too_accountable",
-        cursorclass=DictCursor
+        cursorclass=pymysql.cursors.DictCursor
     )

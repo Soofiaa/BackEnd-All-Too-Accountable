@@ -1,4 +1,5 @@
 from database import db
+from datetime import date
 
 class GastoMensual(db.Model):
     __tablename__ = 'gastos_mensuales'
@@ -9,6 +10,7 @@ class GastoMensual(db.Model):
     monto = db.Column(db.Float, nullable=False)
     dia_pago = db.Column(db.Integer)
     id_usuario = db.Column(db.Integer, nullable=False)
+    fecha_creacion = db.Column(db.Date, nullable=False, default=date.today)
 
     def to_dict(self):
         return {
@@ -17,5 +19,6 @@ class GastoMensual(db.Model):
             'descripcion': self.descripcion,
             'monto': self.monto,
             'dia_pago': self.dia_pago,
-            'id_usuario': self.id_usuario
+            'id_usuario': self.id_usuario,
+            'fecha_creacion': self.fecha_creacion.isoformat() if self.fecha_creacion else None
         }

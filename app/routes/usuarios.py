@@ -5,6 +5,9 @@ from app.utils.seguridad import hash_password
 import smtplib
 from email.mime.text import MIMEText
 from datetime import datetime
+from app.models.usuario import Usuario
+from database import conectar_bd
+
 
 usuarios_bp = Blueprint('usuarios', __name__)
 
@@ -66,3 +69,17 @@ def registrar_usuario():
     enviar_correo(correo, nombre_usuario)
 
     return jsonify({"mensaje": "Usuario registrado correctamente"}), 201
+
+
+@usuarios_bp.route('/<int:id_usuario>', methods=['GET'])
+def obtener_usuario(id_usuario):
+    db = conectar_bd()
+    cursor = db.cursor()
+    cursor.execute("SELECT nombre_usuario FROM usuarios WHERE id_usuario = %s", (id_usuario,))
+    resultado = cursor.fetchone()
+    db.close()
+
+    if resultado:
+        return jsonify({"nombre_usuario": resultado["nombre_usuario"]})
+    else:
+        return jsonify({"error": "Usuario no encontrado"}), 404

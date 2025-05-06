@@ -5,11 +5,13 @@ from datetime import datetime
 
 metas_ahorro_bp = Blueprint('metas_ahorro_bp', __name__)
 
+
 # Obtener metas por usuario
 @metas_ahorro_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_metas(id_usuario):
     metas = MetaAhorro.query.filter_by(id_usuario=id_usuario).all()
     return jsonify([meta.serialize() for meta in metas]), 200
+
 
 # Crear una nueva meta
 @metas_ahorro_bp.route('', methods=['POST'])
@@ -27,15 +29,16 @@ def crear_meta():
 
     nueva_meta = MetaAhorro(
         titulo=titulo,
-        fecha_limite=datetime.strptime(fecha_limite, '%Y-%m-%d'),
+        fecha_limite=datetime.strptime(fecha_limite, '%d-%m-%Y').date(),
         monto_meta=monto_meta,
         id_usuario=id_usuario
     )
     db.session.add(nueva_meta)
     db.session.commit()
-    db.session.refresh(nueva_meta)  # asegura que los datos estén frescos
+    db.session.refresh(nueva_meta)
 
     return jsonify(nueva_meta.serialize()), 201
+
 
 # Editar una meta existente
 @metas_ahorro_bp.route('/<int:id_meta>', methods=['PUT'])
@@ -51,11 +54,12 @@ def editar_meta(id_meta):
         return jsonify({"error": "Todos los campos son obligatorios"}), 400
 
     meta.titulo = titulo
-    meta.fecha_limite = datetime.fromisoformat(fecha_limite).date()
+    meta.fecha_limite = datetime.strptime(fecha_limite, '%d-%m-%Y').date()
     meta.monto_meta = monto_meta
 
     db.session.commit()
     return jsonify(meta.serialize()), 200
+
 
 # Eliminar una meta
 @metas_ahorro_bp.route('/<int:id_meta>', methods=['DELETE'])

@@ -20,13 +20,11 @@ def login():
 
     if usuario and verificar_password(contrasena, usuario.contrasena):
         return jsonify({
-            "success": True,
-            "message": "Inicio de sesión exitoso",
-            "usuario": {
-                "id": usuario.id_usuario,
-                "nombre": usuario.nombre_usuario,
-                "correo": usuario.correo,
-            }
-        })
+    "mensaje": "Inicio de sesión exitoso",
+    "usuario": {
+        "id_usuario": usuario.id_usuario,
+        "nombre_usuario": usuario.nombre_usuario
+    }
+        }), 200
     else:
         return jsonify({"success": False, "message": "Correo o contraseña incorrectos"}), 401

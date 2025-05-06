@@ -19,7 +19,7 @@ def create_app():
     app.register_blueprint(usuarios_bp, url_prefix='/api/usuarios')
 
     from .routes.login import login_bp
-    app.register_blueprint(login_bp, url_prefix='/api/usuarios')
+    app.register_blueprint(login_bp, url_prefix='/api/login')
 
     from .routes.categorias import categorias_bp
     app.register_blueprint(categorias_bp, url_prefix="/api/categorias")

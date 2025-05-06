@@ -13,7 +13,7 @@ class MetaAhorro(db.Model):
         return {
             'id_meta': self.id_meta,
             'titulo': self.titulo,
-            'fecha_limite': self.fecha_limite.strftime('%Y-%m-%d') if hasattr(self.fecha_limite, 'strftime') else self.fecha_limite,
+            'fecha_limite': self.fecha_limite.strftime('%d-%m-%Y') if hasattr(self.fecha_limite, 'strftime') else self.fecha_limite,
             'monto_meta': self.monto_meta,
             'id_usuario': self.id_usuario
         }
