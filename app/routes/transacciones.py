@@ -122,12 +122,15 @@ def crear_transaccion():
 
         fecha_pago = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
         tipo_pago = data["tipoPago"]
+        
+        tipo_pago2 = data.get("tipoPago2")
+        monto2 = float(data["monto2"]) if data.get("monto2") else None
 
         # Calcular mesPago automáticamente
         if tipo_pago in [
             "efectivo", "transferencia", "debito", 
             "contribucion tarjeta de credito", "automatico"
-            ]:
+        ]:
             mes_pago = fecha_pago.strftime("%Y-%m")  # ejemplo: "2025-05"
         else:
             mes_pago = data.get("mesPago")
@@ -138,6 +141,8 @@ def crear_transaccion():
             categoria=data["categoria"],
             descripcion=data["descripcion"],
             tipo_pago=tipo_pago,
+            tipo_pago2=tipo_pago2,                  
+            monto2=monto2,                          
             imagen=imagen_filename,
             cuotas=int(data.get("cuotas", 1)),
             interes=float(data.get("interes", 0)),
@@ -188,6 +193,11 @@ def actualizar_transaccion(id_transaccion):
         transaccion.categoria = data["categoria"]
         transaccion.descripcion = data["descripcion"]
         transaccion.tipo_pago = data["tipoPago"]
+
+        # 🔁 NUEVOS CAMPOS
+        transaccion.tipo_pago2 = data.get("tipoPago2")
+        transaccion.monto2 = float(data["monto2"]) if data.get("monto2") else None
+
         transaccion.cuotas = data.get("cuotas", 1)
         transaccion.interes = data.get("interes", 0)
         transaccion.valor_cuota = data.get("valorCuota")
