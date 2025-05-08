@@ -9,7 +9,7 @@ metas_ahorro_bp = Blueprint('metas_ahorro_bp', __name__)
 # Obtener metas por usuario
 @metas_ahorro_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_metas(id_usuario):
-    metas = MetaAhorro.query.filter_by(id_usuario=id_usuario).all()
+    metas = MetaAhorro.query.filter_by(id_usuario=id_usuario).order_by(MetaAhorro.orden_prioridad).all()
     return jsonify([meta.serialize() for meta in metas]), 200
 
 
@@ -49,6 +49,9 @@ def editar_meta(id_meta):
     titulo = data.get("titulo", "").strip()
     fecha_limite = data.get("fecha_limite")
     monto_meta = data.get("monto_meta")
+
+    if "orden_prioridad" in data:
+        meta.orden_prioridad = data["orden_prioridad"]
 
     if not titulo or not fecha_limite or not monto_meta:
         return jsonify({"error": "Todos los campos son obligatorios"}), 400
