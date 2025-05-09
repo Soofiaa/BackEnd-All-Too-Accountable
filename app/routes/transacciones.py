@@ -27,11 +27,14 @@ def insertar_gastos_mensuales_como_transacciones(id_usuario):
     for gasto in gastos:
         fecha_pago = f"{anio_actual}-{str(mes_actual).zfill(2)}-{str(gasto['dia_pago']).zfill(2)}"
 
+        # Combinar nombre + descripción
+        descripcion_completa = f"{gasto['nombre']} - {gasto['descripcion']}"
+
         # Verificar si ya existe esa transacción para ese mes
         cursor.execute("""
             SELECT * FROM transacciones
             WHERE id_usuario = %s AND descripcion = %s AND fecha = %s
-        """, (id_usuario, gasto["descripcion"], fecha_pago))
+        """, (id_usuario, descripcion_completa, fecha_pago))
         ya_existe = cursor.fetchone()
 
         if not ya_existe:
@@ -46,7 +49,7 @@ def insertar_gastos_mensuales_como_transacciones(id_usuario):
                 fecha_pago,
                 gasto["monto"],
                 "Gasto mensual",
-                gasto["descripcion"],
+                descripcion_completa,
                 "automático"
             ))
             db.commit()
@@ -104,7 +107,6 @@ def crear_transaccion():
     from datetime import datetime
     import base64
     import os
-    from app.models.pago_pendiente import PagoPendiente
 
     data = request.json
     CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
@@ -156,18 +158,6 @@ def crear_transaccion():
 
         db.session.add(nueva)
         db.session.commit()
-
-        # 💳 Agregar a pagos pendientes si aplica
-        if nueva.tipo_pago == "credito" and int(nueva.cuotas) > 1:
-            pago = PagoPendiente(
-                id_usuario=nueva.id_usuario,
-                id_transaccion=nueva.id_transaccion,
-                descripcion=nueva.descripcion,
-                fecha=nueva.fecha,
-                cuotas=nueva.cuotas,
-                valorCuota=nueva.valor_cuota
-            )
-            pago.guardar()
 
         return jsonify(nueva.to_dict()), 201
 

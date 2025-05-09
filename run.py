@@ -13,7 +13,7 @@ from app.routes.metas_ahorro import metas_ahorro_bp as metas_bp
 from app.routes.recuperar_contrasena import recuperar_contrasena_bp
 from app.routes.restablecer_contrasena import restablecer_contrasena_bp
 from app.routes.transacciones import transacciones_bp
-from app.routes.pagos_pendientes import pagos_pendientes_bp
+from app.routes.pagos_programados import gastos_programados_bp
 from app.routes.detalles_usuarios import detalles_usuario_bp
 from app.routes.ahorros import mov_ahorro_bp
 from app.routes.chat_ia import chat_ia_bp
@@ -50,7 +50,7 @@ app.register_blueprint(metas_bp, url_prefix="/api/metas")
 app.register_blueprint(recuperar_contrasena_bp, url_prefix="/api/recuperar_contrasena")
 app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_contrasena")
 app.register_blueprint(transacciones_bp, url_prefix="/api/transacciones")
-app.register_blueprint(pagos_pendientes_bp, url_prefix="/api/pagos_pendientes")
+app.register_blueprint(gastos_programados_bp, url_prefix="/api/pagos_programados")
 app.register_blueprint(detalles_usuario_bp)
 app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
 app.register_blueprint(chat_ia_bp, url_prefix="/api")
