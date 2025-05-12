@@ -8,7 +8,6 @@ import os
 from app.routes.usuarios import usuarios_bp
 from app.routes.login import login_bp
 from app.routes.categorias import categorias_bp
-from app.routes.gastos_mensuales import gastos_mensuales_bp as gastos_bp
 from app.routes.metas_ahorro import metas_ahorro_bp as metas_bp
 from app.routes.recuperar_contrasena import recuperar_contrasena_bp
 from app.routes.restablecer_contrasena import restablecer_contrasena_bp
@@ -17,12 +16,13 @@ from app.routes.pagos_programados import gastos_programados_bp
 from app.routes.detalles_usuarios import detalles_usuario_bp
 from app.routes.ahorros import mov_ahorro_bp
 from app.routes.chat_ia import chat_ia_bp
+from app.routes.transacciones_completas import transacciones_completas_bp
+from app.routes.gastos_mensuales import gastos_mensuales_bp
 
 app = Flask(__name__)
 
 # Activar CORS 
-CORS(app, supports_credentials=True)
-CORS(app, resources={r"/api/*": {"origins": "http://localhost:5173"}})
+CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
 
 # Configuración base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
@@ -45,7 +45,7 @@ mail.init_app(app)
 app.register_blueprint(usuarios_bp, url_prefix="/api/usuarios")
 app.register_blueprint(login_bp, url_prefix="/api/usuarios")
 app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
-app.register_blueprint(gastos_bp, url_prefix="/api/gastos")
+app.register_blueprint(gastos_mensuales_bp, url_prefix="/api/gastos_mensuales")
 app.register_blueprint(metas_bp, url_prefix="/api/metas")
 app.register_blueprint(recuperar_contrasena_bp, url_prefix="/api/recuperar_contrasena")
 app.register_blueprint(restablecer_contrasena_bp, url_prefix="/api/restablecer_contrasena")
@@ -54,6 +54,7 @@ app.register_blueprint(gastos_programados_bp, url_prefix="/api/pagos_programados
 app.register_blueprint(detalles_usuario_bp)
 app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
 app.register_blueprint(chat_ia_bp, url_prefix="/api")
+app.register_blueprint(transacciones_completas_bp)
 
 @app.route('/')
 def index():

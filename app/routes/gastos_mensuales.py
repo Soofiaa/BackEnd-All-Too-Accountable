@@ -4,7 +4,7 @@ from app.models.gasto_mensual import GastoMensual, db
 from database import conectar_bd
 
 
-gastos_mensuales_bp = Blueprint('gastos', __name__)
+gastos_mensuales_bp = Blueprint('gastos_mensuales', __name__)
 
 # Obtener todos los gastos del usuario
 @gastos_mensuales_bp.route('', methods=['GET'])

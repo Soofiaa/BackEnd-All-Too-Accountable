@@ -8,37 +8,12 @@ from datetime import date, datetime, timedelta
 gastos_programados_bp = Blueprint("gastos_programados", __name__)
 
 
-def procesar_gastos_programados():
-    hoy = date.today()
-
-    # Obtener todos los gastos programados activos para hoy
-    gastos = GastoProgramado.query.filter_by(activo=True, fecha_transaccion=hoy).all()
-
-    for gasto in gastos:
-        print(f"🔁 Insertando gasto programado: {gasto.descripcion} para {gasto.id_usuario}")
-
-        nueva_transaccion = Transaccion(
-            id_usuario=gasto.id_usuario,
-            tipo="gasto",
-            fecha=gasto.fecha_transaccion,
-            monto=gasto.monto,
-            categoria="Gasto programado",
-            descripcion=gasto.descripcion,
-            tipo_pago=gasto.tipo_pago,
-            visible=True,
-            mes_pago=gasto.fecha_transaccion.strftime("%Y-%m")
-        )
-
-        db.session.add(nueva_transaccion)
-
-        # Si no es recurrente, desactivar el gasto programado (opcional)
-        gasto.activo = False
-
-    db.session.commit()
-
 # POST - Crear gasto programado
-@gastos_programados_bp.route("/gastos_programados", methods=["POST"])
+@gastos_programados_bp.route("", methods=["POST", "OPTIONS"])
 def crear_gasto_programado():
+    if request.method == "OPTIONS":
+        return jsonify({"status": "CORS preflight"}), 200
+
     data = request.json
 
     try:

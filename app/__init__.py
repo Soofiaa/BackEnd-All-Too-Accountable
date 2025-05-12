@@ -24,9 +24,9 @@ def create_app():
     from .routes.categorias import categorias_bp
     app.register_blueprint(categorias_bp, url_prefix="/api/categorias")
     
-    from .routes.gastos_mensuales import gastos_mensuales_bp
-    app.register_blueprint(gastos_mensuales_bp, url_prefix='/api/gastos')
-    
+    from app.routes.gastos_mensuales import gastos_mensuales_bp
+    app.register_blueprint(gastos_mensuales_bp, url_prefix="/api/gastos_mensuales")
+
     from .routes.metas_ahorro import metas_ahorro_bp
     app.register_blueprint(metas_ahorro_bp, url_prefix='/api/metas')
     
@@ -50,6 +50,9 @@ def create_app():
     
     from app.routes.chat_ia import chat_ia_bp
     app.register_blueprint(chat_ia_bp, url_prefix="/api")
+
+    from app.routes.transacciones_completas import transacciones_completas_bp
+    app.register_blueprint(transacciones_completas_bp)
 
     db.create_all()
 

@@ -67,6 +67,7 @@ def obtener_categorias_transacciones(id_usuario):
         resultado = [
             {
                 "nombre": c.nombre,
+                "tipo": c.tipo,  # 👈 AÑADE ESTO
                 "monto_limite": float(c.monto_limite or 0)
             }
             for c in categorias
@@ -249,3 +250,18 @@ def recuperar_transaccion(id_transaccion):
         return jsonify({"mensaje": "Transacción recuperada"}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+
+@transacciones_bp.route('/<int:id>/borrar_definitivo', methods=['DELETE', 'OPTIONS'])
+def borrar_transaccion_totalmente(id):
+    if request.method == "OPTIONS":
+        return jsonify({"status": "preflight ok"}), 200
+
+    transaccion = Transaccion.query.get(id)
+    if not transaccion:
+        return jsonify({"error": "Transacción no encontrada"}), 404
+
+    db.session.delete(transaccion)
+    db.session.commit()
+    return jsonify({"mensaje": "Transacción eliminada definitivamente"}), 200
+
