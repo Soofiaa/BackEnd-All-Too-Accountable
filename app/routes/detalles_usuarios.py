@@ -24,11 +24,12 @@ def actualizar_salario():
     data = request.json
     id_usuario = data.get("id_usuario")
     nuevo_salario = data.get("salario")
+    fecha_salario = data.get("fecha_salario")
 
-    db = conectar_bd()
-    cursor = db.cursor()
-    cursor.execute("UPDATE detalles_usuario SET salario = %s WHERE id_usuario = %s", (nuevo_salario, id_usuario))
-    db.commit()
+    if not id_usuario or not nuevo_salario:
+        return jsonify({"error": "Faltan datos"}), 400
+
+    DetallesUsuario.actualizar_salario(id_usuario, nuevo_salario, fecha_salario)
 
     return jsonify({"mensaje": "Salario actualizado correctamente"})
 

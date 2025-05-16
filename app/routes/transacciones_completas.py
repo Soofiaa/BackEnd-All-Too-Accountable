@@ -3,8 +3,7 @@ from app.models.transaccion import Transaccion
 from app.models.gasto_mensual import GastoMensual
 from app.models.pago_programado import GastoProgramado
 from database import db
-from datetime import date
-from datetime import datetime
+from datetime import date, datetime
 
 transacciones_completas_bp = Blueprint('transacciones_completas', __name__)
 
@@ -23,59 +22,66 @@ def transacciones_completas():
     except ValueError:
         return jsonify({'error': 'Mes y año deben ser números'}), 400
 
-    # TRANSACCIONES NORMALES
+    resultado = []
+
+    # Transacciones normales
     transacciones = Transaccion.query.filter_by(id_usuario=id_usuario).all()
-    normales = []
     for t in transacciones:
-        if not t.visible:
-            continue
         try:
-            fecha_obj = t.fecha if isinstance(t.fecha, date) else datetime.strptime(str(t.fecha), "%Y-%m-%d").date()
-            if fecha_obj.month == mes and fecha_obj.year == anio:
-                normales.append(t.to_dict())
+            fecha = t.fecha if isinstance(t.fecha, date) else datetime.strptime(str(t.fecha), "%Y-%m-%d").date()
         except Exception as e:
-            print(f"⚠️ Error al convertir fecha de transacción ID {t.id_transaccion}: {e}")
+            print(f"⚠️ Error al convertir fecha de transacción ID {t.id_transaccion}: {t.fecha} – {e}")
+            continue
 
+        if fecha.month == mes and fecha.year == anio:
+            trans_dict = t.to_dict()
+            trans_dict["esMensual"] = False
+            trans_dict["esProgramado"] = False
+            resultado.append(trans_dict)
 
-    # GASTOS MENSUALES
+    '''
+    # Gastos mensuales
     gastos_mensuales = GastoMensual.query.filter_by(id_usuario=id_usuario).all()
-    hoy = date.today()
-
-    gastos_mensuales_convertidos = []
     for g in gastos_mensuales:
-        if g.fecha_creacion.year < anio or (g.fecha_creacion.year == anio and g.fecha_creacion.month <= mes):
-            fecha_cobro = date(anio, mes, g.dia_pago)
-            if fecha_cobro <= hoy:
-                gastos_mensuales_convertidos.append({
-                    'id_transaccion': f'gm-{g.id_gasto}',
-                    'fecha': fecha_cobro.isoformat(),
-                    'monto': g.monto,
-                    'categoria': 'Gasto mensual',
-                    'descripcion': f'{g.nombre} – {g.descripcion}' if g.descripcion else g.nombre,
-                    'tipo': 'gasto',
-                    'tipoPago': 'automático',
-                    'visible': True,
-                    'imagen': None,
-                    'protegida': True
-                })
+        try:
+            fecha_pago = date(anio, mes, g.dia_pago)
+        except ValueError:
+            continue  # Día inválido para ese mes
 
-    # GASTOS PROGRAMADOS
-    gastos_programados = GastoProgramado.query.filter_by(id_usuario=id_usuario, activo=True).all()
-    gastos_programados_convertidos = []
-    for g in gastos_programados:
-        if g.fecha_transaccion.year == anio and g.fecha_transaccion.month == mes:
-            gastos_programados_convertidos.append({
-                'id_transaccion': f'gp-{g.id_gasto_programado}',
-                'fecha': g.fecha_transaccion.isoformat(),  # ✅ corregido
-                'monto': g.monto,
-                'categoria': 'Gasto programado',
-                'descripcion': g.descripcion,
-                'tipo': 'gasto',
-                'tipoPago': g.tipo_pago,
-                'visible': True,
-                'imagen': None,
-                'protegida': True
+        resultado.append({
+            "fecha": fecha_pago.isoformat(),
+            "monto": g.monto,
+            "descripcion": g.descripcion or g.nombre,
+            "tipo": "gasto",
+            "tipoPago": "automatico",
+            "visible": True,
+            "id_usuario": id_usuario,
+            "id_categoria": g.id_categoria,
+            "esMensual": True,
+            "esProgramado": False
+        })
+
+    # Gastos programados
+    pagos_programados = GastoProgramado.query.filter_by(id_usuario=id_usuario, activo=True).all()
+    for p in pagos_programados:
+        try:
+            fecha_trans = p.fecha_transaccion
+        except:
+            continue
+
+        if fecha_trans.month == mes and fecha_trans.year == anio:
+            resultado.append({
+                "fecha": fecha_trans.isoformat(),
+                "monto": float(p.monto),
+                "descripcion": p.descripcion,
+                "tipo": "gasto",
+                "tipoPago": p.tipo_pago,
+                "visible": True,
+                "id_usuario": id_usuario,
+                "id_categoria": p.id_categoria,
+                "esMensual": False,
+                "esProgramado": True
             })
-
-    resultado = normales + gastos_mensuales_convertidos + gastos_programados_convertidos
+    '''
+    
     return jsonify(resultado), 200

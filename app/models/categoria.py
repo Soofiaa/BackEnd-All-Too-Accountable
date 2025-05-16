@@ -10,3 +10,12 @@ class Categoria(db.Model):
     es_general = db.Column(db.Boolean, default=False)
     monto_limite = db.Column(db.Float, default=0)
 
+    def to_dict(self):
+        return {
+            "id_categoria": self.id_categoria,
+            "nombre": self.nombre,
+            "tipo": self.tipo,
+            "id_usuario": self.id_usuario,
+            "es_general": self.es_general,
+            "monto_limite": self.monto_limite
+        }

@@ -12,6 +12,7 @@ class GastoProgramado(db.Model):
     monto = db.Column(db.Numeric(12, 2), nullable=False)
     fecha_transaccion = db.Column(db.Date, nullable=False)
     activo = db.Column(db.Boolean, default=True)
+    id_categoria = db.Column(db.Integer)
 
     def to_dict(self):
         return {
@@ -23,5 +24,6 @@ class GastoProgramado(db.Model):
             "dias_cheque": self.dias_cheque,
             "monto": float(self.monto),
             "fecha_transaccion": str(self.fecha_transaccion),
-            "activo": self.activo
+            "activo": self.activo,
+            "id_categoria": self.id_categoria
         }

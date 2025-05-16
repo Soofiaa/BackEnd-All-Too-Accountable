@@ -18,11 +18,13 @@ from app.routes.ahorros import mov_ahorro_bp
 from app.routes.chat_ia import chat_ia_bp
 from app.routes.transacciones_completas import transacciones_completas_bp
 from app.routes.gastos_mensuales import gastos_mensuales_bp
+from app.routes.importar_movimientos import importar_bp
+from app.routes.ocr import ocr_bp
 
 app = Flask(__name__)
 
 # Activar CORS 
-CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+CORS(app, supports_credentials=True)
 
 # Configuración base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
@@ -55,6 +57,8 @@ app.register_blueprint(detalles_usuario_bp)
 app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
 app.register_blueprint(chat_ia_bp, url_prefix="/api")
 app.register_blueprint(transacciones_completas_bp)
+app.register_blueprint(importar_bp)
+app.register_blueprint(ocr_bp)
 
 @app.route('/')
 def index():

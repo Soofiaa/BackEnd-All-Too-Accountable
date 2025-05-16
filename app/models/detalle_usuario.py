@@ -3,18 +3,18 @@
 from database import conectar_bd
 
 class DetallesUsuario:
-    def __init__(self, id_usuario, salario, ahorros, dia_facturacion):
+    def __init__(self, id_usuario, salario, fecha_salario=None):
         self.id_usuario = id_usuario
         self.salario = salario
-        self.dia_facturacion = dia_facturacion
+        self.fecha_salario = fecha_salario
 
 
     def guardar(self):
         db = conectar_bd()
         cursor = db.cursor()
         cursor.execute(
-            "INSERT INTO detalles_usuario (id_usuario, salario, dia_facturacion) VALUES (%s, %s, %s)",
-            (self.id_usuario, self.salario, self.dia_facturacion)
+        "INSERT INTO detalles_usuario (id_usuario, salario, fecha_salario) VALUES (%s, %s, %s)",
+            (self.id_usuario, self.salario, self.fecha_salario)
         )
         db.commit()
 
@@ -24,22 +24,25 @@ class DetallesUsuario:
         db = conectar_bd()
         cursor = db.cursor()
         try:
-            cursor.execute("SELECT salario, dia_facturacion FROM detalles_usuario WHERE id_usuario = %s", (id_usuario,))
+            cursor.execute("SELECT salario, fecha_salario FROM detalles_usuario WHERE id_usuario = %s", (id_usuario,))
             resultado = cursor.fetchone()
             if resultado:
                 return {
                     "salario": resultado["salario"],
-                    "dia_facturacion": resultado["dia_facturacion"]
+                    "fecha_salario": resultado["fecha_salario"].isoformat() if resultado["fecha_salario"] else None
                 }
             else:
-                return {}  # o None si prefieres manejarlo así en el frontend
+                return {}
         finally:
             db.close()
 
 
     @staticmethod
-    def actualizar_salario(id_usuario, nuevo_salario):
+    def actualizar_salario(id_usuario, nuevo_salario, fecha_salario):
         db = conectar_bd()
         cursor = db.cursor()
-        cursor.execute("UPDATE detalles_usuario SET salario = %s WHERE id_usuario = %s", (nuevo_salario, id_usuario))
+        cursor.execute(
+            "UPDATE detalles_usuario SET salario = %s, fecha_salario = %s WHERE id_usuario = %s",
+            (nuevo_salario, fecha_salario, id_usuario)
+        )
         db.commit()

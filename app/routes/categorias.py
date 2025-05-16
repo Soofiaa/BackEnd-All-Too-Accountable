@@ -2,28 +2,26 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 from app import db
 from app.models.categoria import Categoria
+from sqlalchemy import case
 
 categorias_bp = Blueprint("categorias", __name__)
 
 # Obtener todas las categorías del usuario + "General"
 @categorias_bp.route("/<int:id_usuario>", methods=["GET"])
 def obtener_categorias(id_usuario):
-    # Filtramos categorías propias y globales (id_usuario == None → "General")
-    categorias = Categoria.query.filter(
-        or_(Categoria.id_usuario == id_usuario, Categoria.id_usuario == None)
-    ).all()
+    orden = case(
+        (Categoria.nombre == "General", 1),
+        (Categoria.nombre == "Gasto Mensual", 2),
+        (Categoria.nombre == "Gasto Programado", 3),
+        else_=4
+    )
 
-    # Retornamos los datos + si se pueden editar
-    resultado = [
-        {
-            "id": c.id_categoria,
-            "nombre": c.nombre,
-            "tipo": c.tipo,
-            "editable": c.id_usuario is not None,
-            "monto_limite": c.monto_limite
-        } for c in categorias
-    ]
-    return jsonify(resultado), 200
+    categorias = Categoria.query.filter(
+        (Categoria.id_usuario == id_usuario) | (Categoria.id_usuario == None)
+    ).order_by(orden, Categoria.nombre).all()
+
+    return jsonify([c.to_dict() for c in categorias])
+
 
 # Crear nueva categoría
 @categorias_bp.route("/", methods=["POST"])
@@ -77,8 +75,8 @@ def eliminar_categoria(id):
         return jsonify({"error": "Categoría no encontrada"}), 404
 
     # Protegemos la categoría "General"
-    if categoria.id_usuario is None and categoria.nombre == "General":
-        return jsonify({"error": "Esta categoría no se puede eliminar"}), 403
+    if categoria.es_general:
+        return jsonify({"error": "Esta categoría no se puede editar"}), 403
 
     db.session.delete(categoria)
     db.session.commit()

@@ -1,8 +1,10 @@
 import datetime
 from flask import Blueprint, request, jsonify
 from app.models.gasto_mensual import GastoMensual, db
+from app.models.transaccion import Transaccion
 from database import conectar_bd
-
+from flask import Blueprint, request, jsonify
+from datetime import date
 
 gastos_mensuales_bp = Blueprint('gastos_mensuales', __name__)
 
@@ -15,6 +17,8 @@ def obtener_gastos():
 
     gastos = GastoMensual.query.filter_by(id_usuario=id_usuario).all()
     return jsonify([gasto.to_dict() for gasto in gastos])
+
+
 # Crear nuevo gasto
 @gastos_mensuales_bp.route('', methods=['POST'])
 def crear_gasto():
@@ -28,39 +32,33 @@ def crear_gasto():
     if not nombre or not monto or not dia_pago or not id_usuario:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
 
+    # Crear el gasto mensual
     nuevo_gasto = GastoMensual(
         nombre=nombre,
         descripcion=data.get('descripcion', ''),
         monto=monto,
         dia_pago=dia_pago,
-        id_usuario=id_usuario
+        id_usuario=id_usuario,
+        id_categoria=id_categoria
     )
 
     db.session.add(nuevo_gasto)
     db.session.commit()
-    
-    # También insertar como transacción
-    from app.models.transaccion import Transaccion
-    from datetime import date
 
-    nueva_transaccion = Transaccion(
-        fecha=date.today(),
-        monto=nuevo_gasto.monto,
-        categoria="Gasto mensual",           # Categoría fija
-        descripcion=nuevo_gasto.nombre,      # O puedes usar el campo descripción si prefieres
-        tipo_pago="debito",
-        imagen=None,
-        cuotas=1,
-        interes=0,
-        valor_cuota=0,
-        total_credito=0,
-        tipo="gasto",
-        id_usuario=nuevo_gasto.id_usuario,
-        visible=True
-    )
+    # Calcular fecha correcta del gasto
+    hoy = date.today()
+    anio = hoy.year
+    mes = hoy.month
+    dia = int(dia_pago)
 
-    db.session.add(nueva_transaccion)
-    db.session.commit()
+    try:
+        fecha_gasto = date(anio, mes, dia)
+    except ValueError:
+        # por si ponen 31 en un mes con 30 días
+        fecha_gasto = date(anio, mes, 28)
+
+    # Crear la transacción correspondiente
+    id_categoria = data.get("id_categoria")  # viene del frontend
 
     return jsonify(nuevo_gasto.to_dict()), 201
 
@@ -85,13 +83,31 @@ def editar_gasto(id_gasto):
     if not nombre or not monto or not dia_pago:
         return jsonify({'error': 'Todos los campos son obligatorios'}), 400
 
-    # Aplicar cambios
+    # Aplicar cambios al gasto mensual
     gasto.nombre = nombre
     gasto.descripcion = data.get('descripcion', '')
     gasto.monto = float(monto)
     gasto.dia_pago = dia_pago
+    gasto.id_categoria = data.get("id_categoria", gasto.id_categoria)
 
     db.session.commit()
+
+    # ✅ Actualizar transacciones futuras asociadas a este gasto mensual
+    from datetime import date
+    hoy = date.today()
+
+    transacciones = Transaccion.query.filter(
+        Transaccion.id_gasto_mensual == gasto.id_gasto,
+        Transaccion.fecha >= hoy
+    ).all()
+
+    for t in transacciones:
+        t.descripcion = gasto.nombre
+        t.monto = gasto.monto
+        t.id_categoria = gasto.id_categoria
+
+    db.session.commit()
+
     return jsonify(gasto.to_dict())
 
 
@@ -109,3 +125,73 @@ def eliminar_gasto(id_gasto):
     db.session.delete(gasto)
     db.session.commit()
     return '', 204
+
+
+@gastos_mensuales_bp.route("/insertar_transaccion/<int:id_gasto>", methods=["POST"])
+def insertar_transaccion_desde_gasto_mensual(id_gasto):
+    gasto = GastoMensual.query.get(id_gasto)
+
+    if not gasto:
+        return jsonify({"error": "Gasto mensual no encontrado"}), 404
+
+    try:
+        # Generar fecha de cobro con el día definido
+        hoy = date.today()
+        fecha_pago = date(hoy.year, hoy.month, gasto.dia_pago)
+
+        nueva = Transaccion(
+            fecha=fecha_pago,
+            monto=gasto.monto,
+            id_categoria=gasto.id_categoria,
+            descripcion=gasto.nombre,
+            tipo_pago="automatico",
+            tipo_pago2=None,
+            monto2=None,
+            imagen=None,
+            cuotas=1,
+            interes=0,
+            valor_cuota=0,
+            total_credito=0,
+            tipo="gasto",
+            id_usuario=gasto.id_usuario,
+            visible=True,
+            id_gasto_mensual=gasto.id_gasto
+        )
+
+        db.session.add(nueva)
+        db.session.commit()
+
+        return jsonify({"mensaje": "Transacción generada correctamente"}), 201
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
+
+@gastos_mensuales_bp.route("/desactivar/<int:id_gasto>", methods=["PUT"])
+def desactivar_gasto(id_gasto):
+    id_usuario = request.args.get("id_usuario")
+    if not id_usuario:
+        return jsonify({"error": "id_usuario requerido"}), 400
+
+    gasto = GastoMensual.query.filter_by(id_gasto=id_gasto, id_usuario=id_usuario).first()
+    if not gasto:
+        return jsonify({"error": "Gasto no encontrado o no autorizado"}), 404
+
+    gasto.activo = False
+    db.session.commit()
+    return jsonify({"mensaje": "Gasto mensual desactivado"}), 200
+
+
+@gastos_mensuales_bp.route("/reactivar/<int:id_gasto>", methods=["PUT"])
+def reactivar_gasto(id_gasto):
+    id_usuario = request.args.get("id_usuario")
+    if not id_usuario:
+        return jsonify({"error": "id_usuario requerido"}), 400
+
+    gasto = GastoMensual.query.filter_by(id_gasto=id_gasto, id_usuario=id_usuario).first()
+    if not gasto:
+        return jsonify({"error": "Gasto no encontrado o no autorizado"}), 404
+
+    gasto.activo = True
+    db.session.commit()
+    return jsonify({"mensaje": "Gasto mensual reactivado"}), 200

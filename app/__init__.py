@@ -54,6 +54,12 @@ def create_app():
     from app.routes.transacciones_completas import transacciones_completas_bp
     app.register_blueprint(transacciones_completas_bp)
 
+    from routes.importar_movimientos import importar_bp
+    app.register_blueprint(importar_bp)
+
+    from routes.ocr import ocr_bp
+    app.register_blueprint(ocr_bp)
+
     db.create_all()
 
     return app
