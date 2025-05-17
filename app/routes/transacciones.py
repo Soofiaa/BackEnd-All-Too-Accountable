@@ -14,6 +14,7 @@ from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.units import cm
 import pymysql.cursors
+import traceback
 
 transacciones_bp = Blueprint("transacciones", __name__)
 
@@ -101,7 +102,7 @@ def crear_transaccion():
             "contribucion tarjeta de credito", "automatico"
         ]:
             cursor = conectar_bd().cursor()
-            if transaccion_ya_existe(cursor, id_usuario, tipo, fecha_pago, monto, descripcion, tipo_pago, id_categoria):
+            if transaccion_ya_existe(cursor, id_usuario, tipo, fecha_pago, monto, descripcion, tipo_pago):
                 return jsonify({"error": "Transacción duplicada."}), 409
 
         # Crear la transacción
@@ -129,6 +130,8 @@ def crear_transaccion():
         return jsonify(nueva.to_dict()), 201
 
     except Exception as e:
+        print("❌ Error al guardar transacción:")
+        traceback.print_exc()
         return jsonify({"error": str(e)}), 400
 
 
