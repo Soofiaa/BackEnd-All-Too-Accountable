@@ -2,6 +2,9 @@ from flask import Blueprint, request, jsonify
 from sqlalchemy import or_
 from app import db
 from app.models.categoria import Categoria
+from app.models.transaccion import Transaccion
+from app.models.gasto_mensual import GastoMensual
+from app.models.pago_programado import GastoProgramado
 from sqlalchemy import case
 
 categorias_bp = Blueprint("categorias", __name__)
@@ -76,8 +79,26 @@ def eliminar_categoria(id):
 
     # Protegemos la categoría "General"
     if categoria.es_general:
-        return jsonify({"error": "Esta categoría no se puede editar"}), 403
+        return jsonify({"error": "Esta categoría no se puede eliminar"}), 403
 
+    id_usuario = categoria.id_usuario
+
+    # Buscar la categoría general del sistema (común o del mismo usuario si aplica)
+    categoria_general = Categoria.query.filter_by(nombre="General", id_usuario=None).first()
+    if not categoria_general:
+        return jsonify({"error": "No se encontró la categoría general"}), 500
+
+    id_general = categoria_general.id_categoria
+
+    # Reasignar en transacciones
+    Transaccion.query.filter_by(id_categoria=id).update({Transaccion.id_categoria: id_general})
+    # Reasignar en gastos mensuales
+    GastoMensual.query.filter_by(id_categoria=id).update({GastoMensual.id_categoria: id_general})
+    # Reasignar en pagos programados
+    GastoProgramado.query.filter_by(id_categoria=id).update({GastoProgramado.id_categoria: id_general})
+
+    # Eliminar la categoría
     db.session.delete(categoria)
     db.session.commit()
-    return jsonify({"mensaje": "Categoría eliminada"}), 200
+
+    return jsonify({"mensaje": "Categoría eliminada y transacciones reasignadas a 'General'"}), 200
