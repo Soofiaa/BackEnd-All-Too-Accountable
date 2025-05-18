@@ -60,6 +60,12 @@ def create_app():
     from routes.ocr import ocr_bp
     app.register_blueprint(ocr_bp)
 
+    from app.routes.promedios import promedios_bp
+    app.register_blueprint(promedios_bp, url_prefix="/api/promedios")
+
+    from app.routes.estadisticas import estadisticas_bp
+    app.register_blueprint(estadisticas_bp, url_prefix="/api/estadisticas")
+
     db.create_all()
 
     return app
