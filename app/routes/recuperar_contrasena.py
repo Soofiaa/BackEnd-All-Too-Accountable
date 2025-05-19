@@ -62,8 +62,8 @@ def recuperar_contrasena():
             servidor.starttls()
             servidor.login("soofiaa.menzel@gmail.com", "***REMOVED***")  # clave app Gmail
             servidor.send_message(msg)
-            print("✅ Correo de recuperación enviado correctamente.")
+            print("Correo de recuperación enviado correctamente.")
             return jsonify({"mensaje": "Correo enviado correctamente", "token": token, "enlace": link}), 200
     except Exception as e:
-        print(f"❌ ERROR AL ENVIAR CORREO: {e}")
+        print(f"ERROR AL ENVIAR CORREO: {e}")
         return jsonify({"error": "No se pudo enviar el correo", "detalle": str(e)}), 500

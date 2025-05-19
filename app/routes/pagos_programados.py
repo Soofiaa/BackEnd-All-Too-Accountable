@@ -19,7 +19,7 @@ def crear_gasto_programado():
     try:
         fecha_emision = datetime.strptime(data["fecha_emision"], "%Y-%m-%d").date()
         tipo_pago = data["tipo_pago"]
-        id_categoria = data.get("id_categoria")  # ✅ nuevo
+        id_categoria = data.get("id_categoria")
 
         if tipo_pago == "cheque":
             dias_cheque = int(data["dias_cheque"])
@@ -36,23 +36,11 @@ def crear_gasto_programado():
             dias_cheque=dias_cheque,
             monto=data["monto"],
             fecha_transaccion=fecha_transaccion,
-            id_categoria=id_categoria  # ✅ guardamos el id
+            id_categoria=id_categoria
         )
 
         db.session.add(nuevo)
         db.session.commit()
-        
-        # Insertar transacción real desde este gasto programado
-        insertar_transaccion_desde_gasto_programado({
-            "id_usuario": nuevo.id_usuario,
-            "monto": nuevo.monto,
-            "fecha_transaccion": nuevo.fecha_transaccion,
-            "descripcion": nuevo.descripcion,
-            "tipo_pago": nuevo.tipo_pago,
-            "id_gasto_programado": nuevo.id_gasto_programado,
-            "id_categoria": nuevo.id_categoria  # ✅ lo pasamos a la transacción
-        })
-
         return jsonify(nuevo.to_dict()), 201
 
     except Exception as e:
@@ -120,60 +108,6 @@ def eliminar_gasto_programado(id_gasto_programado):
     db.session.commit()
     return jsonify({"mensaje": "Gasto eliminado correctamente"}), 200
 
-
-def insertar_transaccion_desde_gasto_programado(gasto):
-    db = conectar_bd()
-    cursor = db.cursor()
-
-    fecha_raw = gasto["fecha_transaccion"]
-    if isinstance(fecha_raw, str):
-        try:
-            fecha = datetime.strptime(fecha_raw, "%Y-%m-%d").date()
-        except Exception:
-            print(f"❌ Fecha inválida: {fecha_raw}")
-            return
-    else:
-        fecha = fecha_raw
-
-    id_categoria = gasto.get("id_categoria")  # ✅ categoría real
-
-    # Verificar duplicado
-    cursor.execute("""
-        SELECT 1 FROM transacciones
-        WHERE id_usuario = %s AND tipo = %s AND fecha = %s
-        AND monto = %s AND descripcion = %s AND tipo_pago = %s AND id_categoria = %s
-    """, (
-        gasto["id_usuario"],
-        "gasto",
-        fecha,
-        gasto["monto"],
-        gasto["descripcion"],
-        gasto["tipo_pago"],
-        id_categoria
-    ))
-    if cursor.fetchone():
-        print("⛔ Transacción ya existe, no se insertará.")
-        return
-
-    # Insertar transacción real
-    cursor.execute("""
-        INSERT INTO transacciones (
-            id_usuario, tipo, fecha, monto, id_categoria,
-            descripcion, tipo_pago, visible, importada, id_gasto_programado
-        ) VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 1, %s)
-    """, (
-        gasto["id_usuario"],
-        "gasto",
-        fecha,
-        gasto["monto"],
-        id_categoria,
-        gasto["descripcion"],
-        gasto["tipo_pago"],
-        gasto["id_gasto_programado"]
-    ))
-    db.commit()
-    print("Transacción desde gasto programado insertada con éxito.")
-    
 
 @gastos_programados_bp.route("/actualizar_estado_automatico/<int:id_usuario>", methods=["PUT"])
 def actualizar_estado_programados(id_usuario):

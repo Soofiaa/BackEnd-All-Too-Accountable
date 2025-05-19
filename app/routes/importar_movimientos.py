@@ -59,7 +59,7 @@ def importar_movimientos():
                 try:
                     fecha = datetime.strptime(fecha_raw, "%Y-%m-%d").date()
                 except Exception as e:
-                    print(f"❌ Fecha inválida: {fecha_raw} – {e}")
+                    print(f"Fecha inválida: {fecha_raw} – {e}")
                     continue
 
             detalle = str(fila.get("detalle", "")).strip()
@@ -93,7 +93,7 @@ def importar_movimientos():
             ).first()
 
             if ya_existe:
-                print(f"⛔ Transacción duplicada ignorada: {detalle} – {fecha}")
+                print(f"Transacción duplicada ignorada: {detalle} – {fecha}")
                 continue
             
             nueva = Transaccion(

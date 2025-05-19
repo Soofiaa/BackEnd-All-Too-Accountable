@@ -51,6 +51,7 @@ def crear_categoria():
 
     return jsonify({"mensaje": "Categoría creada con éxito"}), 201
 
+
 # Editar categoría
 @categorias_bp.route("/<int:id>", methods=["PUT"])
 def editar_categoria(id):
@@ -69,6 +70,7 @@ def editar_categoria(id):
     db.session.commit()
 
     return jsonify({"mensaje": "Categoría actualizada"}), 200
+
 
 # Eliminar categoría
 @categorias_bp.route("/<int:id>", methods=["DELETE"])

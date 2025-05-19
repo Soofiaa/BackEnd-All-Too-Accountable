@@ -2,9 +2,6 @@ from flask import Blueprint, request, jsonify
 from app.utils.seguridad import hash_password
 from database import conectar_bd
 import bcrypt
-import datetime
-import traceback
-import bcrypt
 from pymysql.cursors import DictCursor
 
 
@@ -45,6 +42,6 @@ def restablecer_contrasena():
 
     except Exception as e:
         import traceback
-        print("❌ ERROR:", e)
+        print("ERROR:", e)
         traceback.print_exc()
         return jsonify({"error": "Error interno del servidor"}), 500

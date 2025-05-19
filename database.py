@@ -7,7 +7,7 @@ from pymysql.cursors import DictCursor
 app = Flask(__name__)
 CORS(app)
 
-# Configuración para SQLAlchemy (base de datos principal)
+# Configuración para SQLAlchemy
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

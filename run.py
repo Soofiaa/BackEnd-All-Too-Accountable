@@ -15,13 +15,14 @@ from app.routes.transacciones import transacciones_bp
 from app.routes.pagos_programados import gastos_programados_bp
 from app.routes.detalles_usuarios import detalles_usuario_bp
 from app.routes.ahorros import mov_ahorro_bp
-from app.routes.chat_ia import chat_ia_bp
+from app.routes.DESCARTADOS.chat_ia import chat_ia_bp
 from app.routes.transacciones_completas import transacciones_completas_bp
 from app.routes.gastos_mensuales import gastos_mensuales_bp
 from app.routes.importar_movimientos import importar_bp
 from app.routes.ocr import ocr_bp
 from app.routes.promedios import promedios_bp
 from app.routes.estadisticas import estadisticas_bp
+from app.routes.generar_transacciones import generar_transacciones_bp
 
 app = Flask(__name__)
 
@@ -63,6 +64,7 @@ app.register_blueprint(importar_bp)
 app.register_blueprint(ocr_bp)
 app.register_blueprint(promedios_bp, url_prefix="/api/promedios")
 app.register_blueprint(estadisticas_bp, url_prefix="/api/estadisticas")
+app.register_blueprint(generar_transacciones_bp)
 
 @app.route('/')
 def index():

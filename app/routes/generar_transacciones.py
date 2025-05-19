@@ -17,7 +17,7 @@ def generar_transacciones_mes_actual():
     anio, mes = hoy.year, hoy.month
     generadas = []
 
-    # 🟦 GASTOS MENSUALES
+    # GASTOS MENSUALES
     gastos_mensuales = GastoMensual.query.filter_by(id_usuario=id_usuario).all()
     for gasto in gastos_mensuales:
         try:
@@ -54,7 +54,7 @@ def generar_transacciones_mes_actual():
             db.session.add(nueva)
             generadas.append(f"mensual:{gasto.nombre}")
 
-    # 🟪 GASTOS PROGRAMADOS
+    # GASTOS PROGRAMADOS
     pagos_programados = GastoProgramado.query.filter_by(id_usuario=id_usuario, activo=True).all()
     for pago in pagos_programados:
         fecha = pago.fecha_transaccion

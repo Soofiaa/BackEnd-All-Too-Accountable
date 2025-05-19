@@ -27,9 +27,9 @@ def enviar_correo(destinatario, nombre_usuario):
             servidor.starttls()
             servidor.login("soofiaa.menzel@gmail.com", "***REMOVED***")  # clave app Gmail
             servidor.send_message(msg)
-            print("✅ Correo enviado correctamente.")
+            print("Correo enviado correctamente.")
     except Exception as e:
-        print(f"❌ Error al enviar correo: {e}")
+        print(f"Error al enviar correo: {e}")
 
 @usuarios_bp.route('/registro', methods=['POST'])
 def registrar_usuario():

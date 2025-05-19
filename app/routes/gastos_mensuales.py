@@ -58,7 +58,7 @@ def crear_gasto():
         fecha_gasto = date(anio, mes, 28)
 
     # Crear la transacción correspondiente
-    id_categoria = data.get("id_categoria")  # viene del frontend
+    id_categoria = data.get("id_categoria")
 
     return jsonify(nuevo_gasto.to_dict()), 201
 
@@ -92,8 +92,7 @@ def editar_gasto(id_gasto):
 
     db.session.commit()
 
-    # ✅ Actualizar transacciones futuras asociadas a este gasto mensual
-    from datetime import date
+    # Actualizar transacciones futuras asociadas a este gasto mensual
     hoy = date.today()
 
     transacciones = Transaccion.query.filter(
@@ -107,7 +106,6 @@ def editar_gasto(id_gasto):
         t.id_categoria = gasto.id_categoria
 
     db.session.commit()
-
     return jsonify(gasto.to_dict())
 
 
@@ -125,46 +123,6 @@ def eliminar_gasto(id_gasto):
     db.session.delete(gasto)
     db.session.commit()
     return '', 204
-
-
-@gastos_mensuales_bp.route("/insertar_transaccion/<int:id_gasto>", methods=["POST"])
-def insertar_transaccion_desde_gasto_mensual(id_gasto):
-    gasto = GastoMensual.query.get(id_gasto)
-
-    if not gasto:
-        return jsonify({"error": "Gasto mensual no encontrado"}), 404
-
-    try:
-        # Generar fecha de cobro con el día definido
-        hoy = date.today()
-        fecha_pago = date(hoy.year, hoy.month, gasto.dia_pago)
-
-        nueva = Transaccion(
-            fecha=fecha_pago,
-            monto=gasto.monto,
-            id_categoria=gasto.id_categoria,
-            descripcion=gasto.nombre,
-            tipo_pago="automatico",
-            tipo_pago2=None,
-            monto2=None,
-            imagen=None,
-            cuotas=1,
-            interes=0,
-            valor_cuota=0,
-            total_credito=0,
-            tipo="gasto",
-            id_usuario=gasto.id_usuario,
-            visible=True,
-            id_gasto_mensual=gasto.id_gasto
-        )
-
-        db.session.add(nueva)
-        db.session.commit()
-
-        return jsonify({"mensaje": "Transacción generada correctamente"}), 201
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 400
 
 
 @gastos_mensuales_bp.route("/desactivar/<int:id_gasto>", methods=["PUT"])

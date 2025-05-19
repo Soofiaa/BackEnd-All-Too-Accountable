@@ -1,7 +1,5 @@
 from flask import Blueprint, request, jsonify
 from app.models.transaccion import Transaccion
-from app.models.gasto_mensual import GastoMensual
-from app.models.pago_programado import GastoProgramado
 from database import db
 from datetime import date, datetime
 

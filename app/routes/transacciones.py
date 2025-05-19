@@ -4,17 +4,19 @@ from app.models.categoria import Categoria
 from app.models.transaccion import Transaccion
 from app.models.pago_programado import GastoProgramado
 from app.models.gasto_mensual import GastoMensual
+from app.models.detalle_usuario import DetallesUsuario
 from datetime import date, datetime
 from database import conectar_bd
 from io import BytesIO
 import pandas as pd
+import traceback
+from datetime import datetime
+import base64
+import os
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
-from reportlab.lib.units import cm
-import pymysql.cursors
-import traceback
 
 transacciones_bp = Blueprint("transacciones", __name__)
 
@@ -31,7 +33,7 @@ def obtener_categorias_transacciones(id_usuario):
         resultado = [
             {
                 "nombre": c.nombre,
-                "tipo": c.tipo,  # 👈 AÑADE ESTO
+                "tipo": c.tipo,
                 "monto_limite": float(c.monto_limite or 0)
             }
             for c in categorias
@@ -68,10 +70,6 @@ def obtener_todas_transacciones_usuario(id_usuario):
 
 @transacciones_bp.route("", methods=["POST"])
 def crear_transaccion():
-    from datetime import datetime
-    import base64
-    import os
-
     data = request.json
     CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
     os.makedirs(CARPETA_IMAGENES, exist_ok=True)
@@ -126,21 +124,16 @@ def crear_transaccion():
 
         db.session.add(nueva)
         db.session.commit()
-
         return jsonify(nueva.to_dict()), 201
 
     except Exception as e:
-        print("❌ Error al guardar transacción:")
+        print("Error al guardar transacción:")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 400
 
 
 @transacciones_bp.route("/<int:id_transaccion>", methods=["PUT"])
 def actualizar_transaccion(id_transaccion):
-    from datetime import datetime
-    import base64
-    import os
-
     data = request.json
     transaccion = db.session.get(Transaccion, id_transaccion)
 
@@ -275,7 +268,7 @@ def eliminar_gasto_programado(id_gasto):
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-    
+
 
 @transacciones_bp.route("/mensuales/<int:id_gasto>/eliminar", methods=["PUT"])
 def eliminar_gasto_mensual(id_gasto):
@@ -325,7 +318,6 @@ def exportar_mes_actual():
         if not id_usuario or not mes or not anio:
             return jsonify({"error": "Faltan parámetros"}), 400
 
-        # Cargar categorías del usuario (y generales si aplica)
         categorias = db.session.execute(
             db.select(Categoria).where(
                 (Categoria.id_usuario == id_usuario) | (Categoria.es_general == True)
@@ -333,7 +325,9 @@ def exportar_mes_actual():
         ).scalars().all()
         mapa_categorias = {c.id_categoria: c.nombre for c in categorias}
 
-        # Filtrar transacciones del mes/año
+        detalle = DetallesUsuario.obtener_por_id(id_usuario)
+        monto_salario = float(detalle["salario"]) if detalle and detalle.get("salario") else 0
+
         transacciones = Transaccion.query.filter_by(id_usuario=id_usuario).all()
         transacciones_mes = []
         for t in transacciones:
@@ -341,6 +335,8 @@ def exportar_mes_actual():
             if isinstance(fecha, str):
                 fecha = datetime.strptime(fecha, "%Y-%m-%d").date()
             if fecha.month == mes and fecha.year == anio:
+                if t.visible is False or t.visible == 0:
+                    continue  # ❌ ignorar transacción eliminada
                 t_dict = t.to_dict()
                 t_dict["categoria"] = mapa_categorias.get(t.id_categoria, "Sin categoría")
                 transacciones_mes.append(t_dict)
@@ -348,11 +344,15 @@ def exportar_mes_actual():
         if not transacciones_mes:
             return jsonify({"error": "No hay transacciones para exportar"}), 404
 
-        columnas_excluir = ["id_transaccion", "imagen", "tipo", "id_usuario", "visible", "importada"]
+        columnas_excluir = [
+            "id_transaccion", "imagen", "id_usuario", "visible",
+            "importada", "id_gasto_mensual", "id_gasto_programado", "id_categoria",
+            "cuotas", "interes", "valorCuota", "totalCredito"
+        ]
 
-        # Cálculo resumen
         total_ingresos = sum(float(t["monto"]) for t in transacciones_mes if t["tipo"] == "ingreso")
         total_gastos = sum(float(t["monto"]) for t in transacciones_mes if t["tipo"] == "gasto")
+        total_ingresos += monto_salario
         balance = total_ingresos - total_gastos
 
         if formato == "excel":
@@ -360,57 +360,64 @@ def exportar_mes_actual():
             df = pd.DataFrame(transacciones_mes)
             df = df.drop(columns=[col for col in columnas_excluir if col in df.columns])
 
-            resumen = {
-                "Total ingresos": [total_ingresos],
-                "Total gastos": [total_gastos],
-                "Balance final": [balance]
-            }
-            df_resumen = pd.DataFrame(resumen)
+            columnas_deseadas = ["fecha", "tipo", "monto", "tipoPago", "descripcion", "categoria"]
+            otras_columnas = [col for col in df.columns if col not in columnas_deseadas]
+            orden_final = columnas_deseadas + otras_columnas
+            df = df[orden_final]
+
+            resumen = []
+            if monto_salario > 0:
+                resumen.append(["Salario", f"${monto_salario:,.0f}".replace(",", ".")])
+
+            resumen.extend([
+                ["Total ingresos", f"${total_ingresos:,.0f}".replace(",", ".")],
+                ["Total gastos", f"${total_gastos:,.0f}".replace(",", ".")],
+                ["Balance final", f"${balance:,.0f}".replace(",", ".")]
+            ])
 
             with pd.ExcelWriter(output, engine="openpyxl") as writer:
                 df.to_excel(writer, index=False, sheet_name="Transacciones")
-                df_resumen.to_excel(writer, index=False, sheet_name="Resumen")
+                hoja = writer.sheets["Transacciones"]
+                startrow = len(df) + 3
+                for i, fila in enumerate(resumen):
+                    hoja.cell(row=startrow + i + 1, column=1, value=fila[0])
+                    hoja.cell(row=startrow + i + 1, column=2, value=fila[1])
 
             output.seek(0)
-            return send_file(output,
-                             download_name=f"transacciones_{mes}-{anio}.xlsx",
-                             as_attachment=True,
-                             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+            return send_file(
+                output,
+                download_name=f"transacciones_{mes}-{anio}.xlsx",
+                as_attachment=True,
+                mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
 
         elif formato == "pdf":
-            from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-            from reportlab.lib.pagesizes import letter
-            from reportlab.lib import colors
-            from reportlab.lib.styles import getSampleStyleSheet
-            from reportlab.lib.units import cm
-
             buffer = BytesIO()
-            doc = SimpleDocTemplate(buffer, pagesize=letter)
+            doc = SimpleDocTemplate(buffer, pagesize=landscape(letter))
+
             elements = []
             styles = getSampleStyleSheet()
 
             elements.append(Paragraph(f"Transacciones de {mes}-{anio}", styles["Title"]))
             elements.append(Spacer(1, 12))
 
-            # Encabezado
-            data = [["Fecha", "Monto", "Categoría", "Descripción", "Tipo", "Tipo de pago"]]
-
-            for t in transacciones_mes:
+            data = [["Fecha", "Tipo", "Monto", "Tipo de pago", "Descripción", "Categoría"]]
+            for t in sorted(transacciones_mes, key=lambda x: x["fecha"]):
                 data.append([
                     t["fecha"],
-                    f"${float(t['monto']):,.0f}".replace(",", "."),
-                    t["categoria"],
-                    t["descripcion"],
                     t["tipo"].capitalize(),
-                    t.get("tipoPago", "-")
+                    f"${float(t['monto']):,.0f}".replace(",", "."),
+                    t.get("tipoPago", "-"),
+                    t["descripcion"],
+                    t["categoria"]
                 ])
 
-            colWidths = [3*cm, 3*cm, 3*cm, 7*cm, 3*cm, 3*cm]
-            tabla = Table(data, colWidths=colWidths)
+            tabla = Table(data)
             tabla.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
                 ("ALIGN", (0, 0), (-1, -1), "LEFT"),
+                ("ALIGN", (1, 1), (1, -1), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
                 ("FONTSIZE", (0, 0), (-1, 0), 11),
@@ -419,158 +426,31 @@ def exportar_mes_actual():
             elements.append(tabla)
             elements.append(Spacer(1, 20))
 
-            # Resumen
-            resumen = [
-                f"💰 Total ingresos: ${total_ingresos:,.0f}".replace(",", "."),
-                f"💸 Total gastos: ${total_gastos:,.0f}".replace(",", "."),
-                f"⚖️ Balance final: ${balance:,.0f}".replace(",", ".")
-            ]
+            resumen = []
+            if monto_salario > 0:
+                resumen.append(f"Salario: ${monto_salario:,.0f}".replace(",", "."))
+            resumen.extend([
+                f"Total ingresos: ${total_ingresos:,.0f}".replace(",", "."),
+                f"Total gastos: ${total_gastos:,.0f}".replace(",", "."),
+                f"Balance final: ${balance:,.0f}".replace(",", ".")
+            ])
             for linea in resumen:
                 elements.append(Paragraph(linea, styles["Heading4"]))
 
             doc.build(elements)
             buffer.seek(0)
-            return send_file(buffer,
-                    download_name=f"transacciones_{mes}-{anio}.pdf",
-                    as_attachment=True,
-                    mimetype="application/pdf")
+            return send_file(
+                buffer,
+                download_name=f"transacciones_{mes}-{anio}.pdf",
+                as_attachment=True,
+                mimetype="application/pdf"
+            )
 
         else:
             return jsonify({"error": "Formato no soportado"}), 400
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-def insertar_gastos_mensuales_como_transacciones(id_usuario):
-    db = conectar_bd()
-    cursor = db.cursor()
-
-    hoy = datetime.now()
-    mes_actual = hoy.month
-    anio_actual = hoy.year
-
-    # Traer todos los gastos mensuales del usuario
-    cursor.execute("""
-        SELECT * FROM gastos_mensuales
-        WHERE id_usuario = %s
-    """, (id_usuario,))
-    gastos = cursor.fetchall()
-
-    for gasto in gastos:
-        fecha_pago = f"{anio_actual}-{str(mes_actual).zfill(2)}-{str(gasto['dia_pago']).zfill(2)}"
-
-        # Combinar nombre + descripción
-        descripcion_completa = f"{gasto['nombre']} - {gasto['descripcion']}"
-
-        # Verificar si ya existe esa transacción para ese mes
-        if transaccion_ya_existe(cursor, id_usuario, "gasto", fecha_pago, gasto["monto"], descripcion_completa, "automático", "Gasto mensual"):
-            print(f"⛔ Ya existe gasto mensual: {descripcion_completa}")
-        else:
-            cursor.execute("""
-                INSERT INTO transacciones (
-                    id_usuario, tipo, fecha, monto, categoria, id_categoria,
-                    descripcion, tipo_pago, visible
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 1)
-            """, (
-                id_usuario,
-                "gasto",
-                fecha_pago,
-                gasto["monto"],
-                "Gasto Mensual",
-                gasto["id_categoria"],
-                descripcion_completa,
-                "automático"
-            ))
-            db.commit()
-            
-
-def insertar_gastos_programados_como_transacciones(id_usuario):
-    print("🛠️ Ejecutando función insertar_gastos_programados_como_transacciones() para usuario:", id_usuario)
-    
-    db_conn = conectar_bd()
-    cursor = db_conn.cursor(pymysql.cursors.DictCursor)
-
-    hoy = datetime.now()
-    mes_actual = hoy.month
-    anio_actual = hoy.year
-
-    cursor.execute("""
-        SELECT * FROM gastos_programados
-        WHERE id_usuario = %s AND activo = TRUE
-    """, (id_usuario,))
-    gastos = cursor.fetchall()
-
-    print(f"🔍 {len(gastos)} gastos programados encontrados")
-
-    for gasto in gastos:
-        fecha_raw = gasto.get("fecha_transaccion")
-
-        if not fecha_raw:
-            print(f"⚠️ Gasto sin fecha_transaccion: {gasto['descripcion']}")
-            continue
-
-        # Convertir fecha_transaccion a tipo date
-        if isinstance(fecha_raw, str):
-            try:
-                fecha = datetime.strptime(fecha_raw, "%Y-%m-%d").date()
-            except ValueError:
-                try:
-                    fecha = datetime.strptime(fecha_raw, "%Y-%m-%d %H:%M:%S").date()
-                except Exception:
-                    print(f"❌ Fecha inválida: {fecha_raw}")
-                    continue
-        elif isinstance(fecha_raw, datetime):
-            fecha = fecha_raw.date()
-        elif isinstance(fecha_raw, date):
-            fecha = fecha_raw
-        else:
-            print(f"❌ Formato no soportado para fecha: {fecha_raw}")
-            continue
-
-        print(f"📅 Evaluando gasto '{gasto['descripcion']}' con fecha {fecha}")
-
-        if fecha.month == mes_actual and fecha.year == anio_actual:
-            print(f"✅ Gasto aplica para el mes actual ({mes_actual}-{anio_actual})")
-
-            # Verificar si ya existe esa transacción para ese gasto programado
-            cursor.execute("""
-                SELECT 1 FROM transacciones
-                WHERE id_usuario = %s AND tipo = %s AND fecha = %s AND monto = %s AND descripcion = %s AND tipo_pago = %s
-            """, (
-                id_usuario,
-                "gasto",  # o variable si estás insertando ingresos también
-                fecha,
-                gasto["monto"],
-                gasto["descripcion"],
-                gasto["tipo_pago"]
-            ))
-            ya_existe = cursor.fetchone()
-
-            if ya_existe:
-                print("⛔ Ya existe una transacción exactamente igual, no se insertará.")
-            else:
-                print("📥 Insertando gasto programado como transacción real...")
-                cursor.execute("""
-                    INSERT INTO transacciones (
-                        id_usuario, tipo, fecha, monto, id_categoria,
-                        descripcion, tipo_pago, visible, importada, id_gasto_programado
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, 1, 1, %s)
-                """, (
-                    id_usuario,
-                    "gasto",
-                    fecha,
-                    gasto["monto"],
-                    "Gasto Programado",
-                    gasto.get("id_categoria"),  # ✅ insertamos el ID real
-                    gasto["descripcion"],
-                    gasto["tipo_pago"],
-                    gasto["id_gasto_programado"]
-                ))
-                db_conn.commit()
-                print("✅ Insertado con éxito.")
-        else:
-            print("⏩ Gasto no corresponde al mes actual, se omite.")
 
 
 def transaccion_ya_existe(cursor, id_usuario, tipo, fecha, monto, descripcion, tipo_pago):

@@ -1,5 +1,3 @@
-# models/detalles_usuario.py
-
 from database import conectar_bd
 
 class DetallesUsuario:

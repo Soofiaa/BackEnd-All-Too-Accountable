@@ -48,7 +48,7 @@ def create_app():
     from .routes.ahorros import mov_ahorro_bp
     app.register_blueprint(mov_ahorro_bp, url_prefix="/api/movimientos_ahorro")
     
-    from app.routes.chat_ia import chat_ia_bp
+    from app.routes.DESCARTADOS.chat_ia import chat_ia_bp
     app.register_blueprint(chat_ia_bp, url_prefix="/api")
 
     from app.routes.transacciones_completas import transacciones_completas_bp
@@ -65,6 +65,9 @@ def create_app():
 
     from app.routes.estadisticas import estadisticas_bp
     app.register_blueprint(estadisticas_bp, url_prefix="/api/estadisticas")
+    
+    from app.routes.generar_transacciones import generar_transacciones_bp
+    app.register_blueprint(generar_transacciones_bp)
 
     db.create_all()
 
