@@ -17,6 +17,7 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet
+from flask import send_from_directory
 
 transacciones_bp = Blueprint("transacciones", __name__)
 
@@ -58,7 +59,6 @@ def obtener_transacciones_usuario(id_usuario):
 
 @transacciones_bp.route('/<int:id_usuario>/todas', methods=['GET'])
 def obtener_todas_transacciones_usuario(id_usuario):
-    
     transacciones = db.session.execute(
         db.select(Transaccion).where(
             Transaccion.id_usuario == id_usuario
@@ -75,7 +75,49 @@ def crear_transaccion():
     os.makedirs(CARPETA_IMAGENES, exist_ok=True)
 
     try:
-        # Procesar imagen si viene
+        # Validaciones
+        try:
+            fecha_pago = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+        except:
+            return jsonify({"error": "Fecha inválida"}), 400
+
+        try:
+            monto = float(data["monto"])
+            if monto <= 0:
+                raise ValueError
+        except:
+            return jsonify({"error": "Monto inválido"}), 400
+
+        descripcion = data.get("descripcion", "").strip()
+        if not descripcion or len(descripcion) > 100:
+            return jsonify({"error": "Descripción inválida"}), 400
+
+        try:
+            id_usuario = int(data["id_usuario"])
+            if id_usuario <= 0:
+                raise ValueError
+        except:
+            return jsonify({"error": "id_usuario inválido"}), 400
+
+        tipo_pago = data.get("tipoPago", "").strip()
+        if tipo_pago not in ["efectivo", "transferencia", "debito", "credito", "automatico", "contribucion tarjeta de credito"]:
+            return jsonify({"error": "Tipo de pago inválido"}), 400
+
+        tipo = data.get("tipo", "").strip()
+        if tipo not in ["ingreso", "gasto"]:
+            return jsonify({"error": "Tipo inválido"}), 400
+
+        tipo_pago2 = data.get("tipoPago2")
+        monto2 = float(data["monto2"]) if data.get("monto2") else None
+        id_categoria = data.get("id_categoria")
+
+        # Validación de duplicado
+        if tipo_pago in ["efectivo", "transferencia", "debito", "contribucion tarjeta de credito", "automatico"]:
+            cursor = conectar_bd().cursor()
+            if transaccion_ya_existe(cursor, id_usuario, tipo, fecha_pago, monto, descripcion, tipo_pago):
+                return jsonify({"error": "Transacción duplicada."}), 409
+
+        # Guardar imagen si viene
         imagen_filename = None
         if data.get("imagen"):
             imagen_bytes = base64.b64decode(data["imagen"])
@@ -84,34 +126,17 @@ def crear_transaccion():
             with open(ruta_imagen, 'wb') as f:
                 f.write(imagen_bytes)
 
-        fecha_pago = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
-        tipo_pago = data["tipoPago"]
-        tipo_pago2 = data.get("tipoPago2")
-        monto2 = float(data["monto2"]) if data.get("monto2") else None
-        tipo = data["tipo"]
-        monto = float(data["monto"])
-        descripcion = data["descripcion"]
-        id_usuario = data["id_usuario"]
-        id_categoria = data.get("id_categoria")
+        monto_total = int(monto + (monto2 if monto2 else 0))
 
-        # Verificar duplicado
-        if tipo_pago in [
-            "efectivo", "transferencia", "debito", 
-            "contribucion tarjeta de credito", "automatico"
-        ]:
-            cursor = conectar_bd().cursor()
-            if transaccion_ya_existe(cursor, id_usuario, tipo, fecha_pago, monto, descripcion, tipo_pago):
-                return jsonify({"error": "Transacción duplicada."}), 409
-
-        # Crear la transacción
         nueva = Transaccion(
             fecha=fecha_pago,
-            monto=monto,
             id_categoria=id_categoria,
             descripcion=descripcion,
             tipo_pago=tipo_pago,
+            monto=monto,
             tipo_pago2=tipo_pago2,
             monto2=monto2,
+            monto_total=monto_total,
             imagen=imagen_filename,
             cuotas=int(data.get("cuotas", 1)),
             interes=float(data.get("interes", 0)),
@@ -141,18 +166,42 @@ def actualizar_transaccion(id_transaccion):
         return jsonify({"error": "Transacción no encontrada"}), 404
 
     try:
-        transaccion.fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
-        transaccion.monto = float(data["monto"])
+        try:
+            transaccion.fecha = datetime.strptime(data["fecha"], "%Y-%m-%d").date()
+        except:
+            return jsonify({"error": "Fecha inválida"}), 400
+
+        try:
+            transaccion.monto = float(data["monto"])
+            if transaccion.monto <= 0:
+                raise ValueError
+        except:
+            return jsonify({"error": "Monto inválido"}), 400
+
+        descripcion = data.get("descripcion", "").strip()
+        if not descripcion or len(descripcion) > 100:
+            return jsonify({"error": "Descripción inválida"}), 400
+        transaccion.descripcion = descripcion
+
         transaccion.id_categoria = data["id_categoria"]
-        transaccion.descripcion = data["descripcion"]
-        transaccion.tipo_pago = data["tipoPago"]
+
+        tipo = data.get("tipo", "").strip()
+        if tipo not in ["ingreso", "gasto"]:
+            return jsonify({"error": "Tipo inválido"}), 400
+        transaccion.tipo = tipo
+
+        tipo_pago = data.get("tipoPago", "").strip()
+        if tipo_pago not in ["efectivo", "transferencia", "debito", "credito", "automatico", "contribucion tarjeta de credito"]:
+            return jsonify({"error": "Tipo de pago inválido"}), 400
+        transaccion.tipo_pago = tipo_pago
+
         transaccion.tipo_pago2 = data.get("tipoPago2")
         transaccion.monto2 = float(data["monto2"]) if data.get("monto2") else None
         transaccion.cuotas = int(data.get("cuotas", 1))
+        transaccion.monto_total = int(transaccion.monto + (transaccion.monto2 if transaccion.monto2 else 0))
         transaccion.interes = float(data.get("interes", 0))
         transaccion.valor_cuota = float(data.get("valorCuota", 0))
         transaccion.total_credito = float(data.get("totalCredito", 0))
-        transaccion.tipo = data["tipo"]
 
         # Procesar imagen si viene
         CARPETA_IMAGENES = os.path.join(os.getcwd(), 'imagenes_transacciones')
@@ -172,7 +221,8 @@ def actualizar_transaccion(id_transaccion):
 
         db.session.commit()
 
-        # Si la transacción proviene de un gasto mensual o programado, actualizamos el gasto original
+        # Si la transacción proviene de un gasto recurrente, actualiza origen
+        hoy = date.today()
         if transaccion.id_gasto_mensual:
             gasto = GastoMensual.query.get(transaccion.id_gasto_mensual)
             if gasto:
@@ -314,7 +364,7 @@ def exportar_mes_actual():
         mes = int(request.args.get("mes"))
         anio = int(request.args.get("anio"))
         formato = request.args.get("formato", "excel")
-
+        
         if not id_usuario or not mes or not anio:
             return jsonify({"error": "Faltan parámetros"}), 400
 
@@ -336,7 +386,7 @@ def exportar_mes_actual():
                 fecha = datetime.strptime(fecha, "%Y-%m-%d").date()
             if fecha.month == mes and fecha.year == anio:
                 if t.visible is False or t.visible == 0:
-                    continue  # ❌ ignorar transacción eliminada
+                    continue
                 t_dict = t.to_dict()
                 t_dict["categoria"] = mapa_categorias.get(t.id_categoria, "Sin categoría")
                 transacciones_mes.append(t_dict)
@@ -350,15 +400,19 @@ def exportar_mes_actual():
             "cuotas", "interes", "valorCuota", "totalCredito"
         ]
 
-        total_ingresos = sum(float(t["monto"]) for t in transacciones_mes if t["tipo"] == "ingreso")
-        total_gastos = sum(float(t["monto"]) for t in transacciones_mes if t["tipo"] == "gasto")
-        total_ingresos += monto_salario
+        total_ingresos = sum(float(t["monto_total"] if t.get("monto_total") else t["monto"]) for t in transacciones_mes if t["tipo"] == "ingreso")
+        total_gastos = sum(float(t["monto_total"] if t.get("monto_total") else t["monto"]) for t in transacciones_mes if t["tipo"] == "gasto")
         balance = total_ingresos - total_gastos
 
         if formato == "excel":
             output = BytesIO()
+            transacciones_mes.sort(key=lambda t: t["fecha"])
             df = pd.DataFrame(transacciones_mes)
             df = df.drop(columns=[col for col in columnas_excluir if col in df.columns])
+            
+            # Asegurar que monto2 se vea como entero
+            if "monto2" in df.columns:
+                df["monto2"] = df["monto2"].fillna(0).astype(int)
 
             columnas_deseadas = ["fecha", "tipo", "monto", "tipoPago", "descripcion", "categoria"]
             otras_columnas = [col for col in df.columns if col not in columnas_deseadas]
@@ -401,18 +455,22 @@ def exportar_mes_actual():
             elements.append(Paragraph(f"Transacciones de {mes}-{anio}", styles["Title"]))
             elements.append(Spacer(1, 12))
 
-            data = [["Fecha", "Tipo", "Monto", "Tipo de pago", "Descripción", "Categoría"]]
+            data = [["Fecha", "Tipo", "Monto", "Tipo de pago", "Descripción", "Categoría", "Tipo pago 2", "Monto 2", "Monto total"]]
             for t in sorted(transacciones_mes, key=lambda x: x["fecha"]):
                 data.append([
                     t["fecha"],
                     t["tipo"].capitalize(),
                     f"${float(t['monto']):,.0f}".replace(",", "."),
                     t.get("tipoPago", "-"),
-                    t["descripcion"],
-                    t["categoria"]
+                    Paragraph(t["descripcion"], styles["Normal"]),
+                    t["categoria"],
+                    t.get("tipoPago2", "-"),
+                    f"${int(t['monto2'])}" if t.get("monto2") else "-",
+                    f"${int(t['monto_total'])}" if t.get("monto_total") else "-"
                 ])
 
             tabla = Table(data)
+            tabla._argW = [70, 45, 60, 70, 140, 75, 75, 55, 65]
             tabla.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#2563eb")),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
@@ -420,8 +478,8 @@ def exportar_mes_actual():
                 ("ALIGN", (1, 1), (1, -1), "RIGHT"),
                 ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
                 ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                ("FONTSIZE", (0, 0), (-1, 0), 11),
-                ("FONTSIZE", (0, 1), (-1, -1), 10),
+                ("FONTSIZE", (0, 0), (-1, 0), 9),  # título de columnas
+                ("FONTSIZE", (0, 1), (-1, -1), 8),  # contenido
             ]))
             elements.append(tabla)
             elements.append(Spacer(1, 20))
@@ -462,3 +520,67 @@ def transaccion_ya_existe(cursor, id_usuario, tipo, fecha, monto, descripcion, t
         id_usuario, tipo, fecha, monto, descripcion, tipo_pago
     ))
     return cursor.fetchone() is not None
+
+
+@transacciones_bp.route('/imagenes/<nombre>')
+def obtener_imagen(nombre):
+    ruta = os.path.join(os.getcwd(), 'imagenes_transacciones')
+    return send_from_directory(ruta, nombre)
+
+
+def insertar_salario_mensual(id_usuario):
+    hoy = date.today()
+    primer_dia_mes = date(hoy.year, hoy.month, 1)
+
+    # 🔍 Buscar transacción de salario mensual sin importar visible
+    ya_existe = db.session.execute(
+        db.select(Transaccion).where(
+            Transaccion.id_usuario == id_usuario,
+            Transaccion.fecha == primer_dia_mes,
+            Transaccion.tipo == "ingreso",
+            Transaccion.descripcion == "Salario mensual"
+        )
+    ).scalars().first()
+
+    if ya_existe:
+        print("Ya existe salario mensual. No se inserta.")
+        return
+
+    print("NO existe salario mensual. Procediendo a insertar...")
+
+    # Obtener salario actual del usuario
+    detalle = DetallesUsuario.obtener_por_id(id_usuario)
+    if not detalle:
+        print("No se encontró detalle del usuario.")
+        return
+
+    salario = float(detalle.get("salario", 0))
+    print("Salario detectado:", salario)
+
+    if salario <= 0:
+        print("Salario es 0 o menor. No se inserta transacción.")
+        return
+
+    # Crear la transacción
+    nueva = Transaccion(
+        fecha=primer_dia_mes,
+        id_categoria=1,  # General
+        descripcion="Salario mensual",
+        tipo_pago="automatico",
+        tipo_pago2=None,
+        monto=salario,
+        monto2=None,
+        monto_total=int(salario),
+        imagen=None,
+        cuotas=1,
+        interes=0,
+        valor_cuota=0,
+        total_credito=0,
+        tipo="ingreso",
+        id_usuario=id_usuario,
+        visible=True
+    )
+
+    db.session.add(nueva)
+    db.session.commit()
+    print("Salario mensual insertado exitosamente.")

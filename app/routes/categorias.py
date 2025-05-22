@@ -30,17 +30,35 @@ def obtener_categorias(id_usuario):
 @categorias_bp.route("/", methods=["POST"])
 def crear_categoria():
     data = request.get_json()
-    nombre = data.get("nombre")
-    tipo = data.get("tipo")
+    nombre = data.get("nombre", "").strip()
+    tipo = data.get("tipo", "").strip()
     id_usuario = data.get("id_usuario")
     monto_limite = data.get("monto_limite", 0)
 
-    # Validación de datos
-    if not nombre or not nombre.strip() or not tipo or not tipo.strip() or not id_usuario:
+    # Validación de campos obligatorios
+    if not nombre or not tipo or not id_usuario:
         return jsonify({"error": "Todos los campos son obligatorios"}), 400
 
+    # Validar longitud de nombre
+    if len(nombre) < 2 or len(nombre) > 50:
+        return jsonify({"error": "El nombre debe tener entre 2 y 50 caracteres"}), 400
 
-    # Validamos que no exista otra categoría igual para ese usuario
+    # Validar tipo permitido
+    if tipo not in ["ingreso", "gasto", "ambos"]:
+        return jsonify({"error": "Tipo de categoría inválido"}), 400
+
+    # Si es tipo ingreso, se fuerza monto_limite a 0
+    if tipo.lower() == "ingreso":
+        monto_limite = 0
+    else:
+        try:
+            monto_limite = float(monto_limite)
+            if monto_limite < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "Monto límite inválido"}), 400
+
+    # Validar duplicado
     existente = Categoria.query.filter_by(nombre=nombre, id_usuario=id_usuario).first()
     if existente:
         return jsonify({"error": "Ya existe una categoría con ese nombre"}), 400
@@ -59,14 +77,40 @@ def editar_categoria(id):
     if not categoria:
         return jsonify({"error": "Categoría no encontrada"}), 404
 
-    # Protegemos la categoría "General"
+    # Protegemos categoría "General" o global
     if categoria.id_usuario is None and categoria.nombre == "General":
         return jsonify({"error": "Esta categoría no se puede editar"}), 403
 
     data = request.get_json()
-    categoria.nombre = data.get("nombre", categoria.nombre)
-    categoria.tipo = data.get("tipo", categoria.tipo)
-    categoria.monto_limite = data.get("monto_limite", categoria.monto_limite)
+
+    nombre = data.get("nombre", categoria.nombre).strip()
+    tipo = data.get("tipo", categoria.tipo).strip()
+    monto_limite = data.get("monto_limite", categoria.monto_limite)
+
+    # Validar nombre
+    if len(nombre) < 2 or len(nombre) > 50:
+        return jsonify({"error": "El nombre debe tener entre 2 y 50 caracteres"}), 400
+
+    # Validar tipo permitido
+    if tipo not in ["ingreso", "gasto", "ambos"]:
+        return jsonify({"error": "Tipo de categoría inválido"}), 400
+
+    # Si es ingreso, el monto límite debe ser 0
+    if tipo.lower() == "ingreso":
+        monto_limite = 0
+    else:
+        try:
+            monto_limite = float(monto_limite)
+            if monto_limite < 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "Monto límite inválido"}), 400
+
+    # Asignar cambios
+    categoria.nombre = nombre
+    categoria.tipo = tipo
+    categoria.monto_limite = monto_limite
+
     db.session.commit()
 
     return jsonify({"mensaje": "Categoría actualizada"}), 200

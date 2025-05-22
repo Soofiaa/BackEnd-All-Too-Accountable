@@ -6,15 +6,28 @@ from app.models.transaccion import Transaccion, db
 from app.models.categoria import Categoria
 import re
 from datetime import datetime
+from app.models.usuario import Usuario
 
 importar_bp = Blueprint('importar', __name__)
 
 @importar_bp.route("/api/importar_movimientos", methods=["POST"])
 def importar_movimientos():
     archivo = request.files.get("archivo")
+    
+    nombre_archivo = secure_filename(archivo.filename).lower()
+    if not (nombre_archivo.endswith(".csv") or nombre_archivo.endswith(".xlsx")):
+        return jsonify({"error": "Solo se permiten archivos .csv o .xlsx"}), 400
+
     id_usuario = request.form.get("id_usuario")
 
+    if not Usuario.query.get(id_usuario):
+        return jsonify({"error": "El usuario no existe"}), 404
+
     cat_general = Categoria.query.filter_by(nombre="General", id_usuario=id_usuario).first()
+    
+    if not cat_general:
+        return jsonify({"error": "No se encontró la categoría 'General'"}), 500
+
     id_general = cat_general.id_categoria if cat_general else None
 
     if not archivo or not id_usuario:
@@ -28,6 +41,9 @@ def importar_movimientos():
 
         # Leer con pandas
         df = pd.read_excel(ruta_temporal, header=2) if archivo.filename.endswith(".xlsx") else pd.read_csv(ruta_temporal)
+        
+        if df.empty:
+            return jsonify({"error": "El archivo está vacío"}), 400
 
         # Validar columnas esperadas
         # Normalizamos nombres de columnas

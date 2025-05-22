@@ -1,4 +1,3 @@
-import datetime
 from flask import Blueprint, request, jsonify
 from app.models.gasto_mensual import GastoMensual, db
 from app.models.transaccion import Transaccion
@@ -29,8 +28,18 @@ def crear_gasto():
     dia_pago = data.get('dia_pago')
     id_usuario = data.get('id_usuario')
 
-    if not nombre or not monto or not dia_pago or not id_usuario:
-        return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+    # Validaciones
+    if not nombre or len(nombre) > 100:
+        return jsonify({'error': 'Nombre inválido'}), 400
+
+    if not isinstance(monto, (int, float)) or float(monto) <= 0:
+        return jsonify({'error': 'Monto inválido'}), 400
+
+    if not isinstance(dia_pago, int) or not (1 <= dia_pago <= 28):
+        return jsonify({'error': 'Día de pago inválido'}), 400
+
+    if not id_usuario:
+        return jsonify({'error': 'id_usuario es obligatorio'}), 400
 
     # Crear el gasto mensual
     nuevo_gasto = GastoMensual(
@@ -80,8 +89,14 @@ def editar_gasto(id_gasto):
     monto = data.get('monto')
     dia_pago = data.get('dia_pago')
 
-    if not nombre or not monto or not dia_pago:
-        return jsonify({'error': 'Todos los campos son obligatorios'}), 400
+    if not nombre or len(nombre) > 100:
+        return jsonify({'error': 'Nombre inválido'}), 400
+
+    if not isinstance(monto, (int, float)) or float(monto) <= 0:
+        return jsonify({'error': 'Monto inválido'}), 400
+
+    if not isinstance(dia_pago, int) or not (1 <= dia_pago <= 28):
+        return jsonify({'error': 'Día de pago inválido'}), 400
 
     # Aplicar cambios al gasto mensual
     gasto.nombre = nombre

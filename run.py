@@ -107,7 +107,7 @@ def probar_correo():
             smtp.login("soofiaa.menzel@gmail.com", "***REMOVED***")
             smtp.send_message(mensaje)
 
-        return "✅ Correo enviado correctamente con UTF-8 forzado"
+        return "Correo enviado correctamente con UTF-8 forzado"
     except Exception as e:
-        return f"❌ Error al enviar correo: {str(e)}"
+        return f"Error al enviar correo: {str(e)}"
 '''

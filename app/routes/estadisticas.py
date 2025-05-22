@@ -11,9 +11,17 @@ def comparar_categorias():
     anio1 = int(request.args.get("anio1"))
     mes2 = int(request.args.get("mes2"))
     anio2 = int(request.args.get("anio2"))
+    
+    if not (1 <= mes1 <= 12) or not (2000 <= anio1 <= 2100):
+        return jsonify({"error": "Fecha 1 inválida"}), 400
 
-    if not id_usuario:
-        return jsonify({"error": "Falta id_usuario"}), 400
+    if not (1 <= mes2 <= 12) or not (2000 <= anio2 <= 2100):
+        return jsonify({"error": "Fecha 2 inválida"}), 400
+
+    try:
+        id_usuario = int(request.args.get("id_usuario"))
+    except (ValueError, TypeError):
+        return jsonify({"error": "id_usuario inválido"}), 400
 
     def obtener_totales(mes, anio):
         transacciones = Transaccion.query.filter(
@@ -49,5 +57,7 @@ def comparar_categorias():
             "cambio": cambio,
             "porcentaje": porcentaje
         })
+    if not resultado:
+        return jsonify({"mensaje": "No se encontraron datos en los meses seleccionados"}), 200
 
     return jsonify(resultado)

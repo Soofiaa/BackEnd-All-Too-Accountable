@@ -31,31 +31,49 @@ def enviar_correo(destinatario, nombre_usuario):
     except Exception as e:
         print(f"Error al enviar correo: {e}")
 
+
 @usuarios_bp.route('/registro', methods=['POST'])
 def registrar_usuario():
-    datos = request.json
-    nombre_usuario = datos.get('nombre_usuario')
-    correo = datos.get('correo')
-    contrasena = datos.get('contrasena')
+    datos = request.get_json()
+
+    nombre_usuario = datos.get('nombre_usuario', '').strip()
+    correo = datos.get('correo', '').strip()
+    contrasena = datos.get('contrasena', '')
     fecha_nacimiento = datos.get('fecha_nacimiento')
-    
-    # Validar edad mínima
+
+    import re
+
+    # Validar campos vacíos
+    if not all([nombre_usuario, correo, contrasena, fecha_nacimiento]):
+        return jsonify({"error": "Faltan campos obligatorios"}), 400
+
+    # Validar nombre
+    if len(nombre_usuario) < 2 or len(nombre_usuario) > 100:
+        return jsonify({"error": "Nombre de usuario inválido"}), 400
+
+    # Validar correo con formato correcto
+    if not re.match(r"^[\w\.-]+@[\w\.-]+\.\w+$", correo):
+        return jsonify({"error": "Correo inválido"}), 400
+
+    # Validar contraseña segura
+    if len(contrasena) < 6:
+        return jsonify({"error": "La contraseña debe tener al menos 6 caracteres"}), 400
+
+    # Validar edad
     try:
         fecha_nac_dt = datetime.strptime(fecha_nacimiento, "%Y-%m-%d")
         hoy = datetime.today()
         edad = hoy.year - fecha_nac_dt.year - ((hoy.month, hoy.day) < (fecha_nac_dt.month, fecha_nac_dt.day))
-
         if edad < 13:
             return jsonify({"error": "Debes tener al menos 13 años para registrarte."}), 403
     except ValueError:
         return jsonify({"error": "Formato de fecha inválido. Usa YYYY-MM-DD."}), 400
 
-    if not all([nombre_usuario, correo, contrasena, fecha_nacimiento]):
-        return jsonify({"error": "Faltan campos obligatorios"}), 400
-
+    # Validar si el correo ya existe
     if Usuario.query.filter_by(correo=correo).first():
-        return jsonify({"error": "El correo ya esta registrado"}), 409
+        return jsonify({"error": "El correo ya está registrado"}), 409
 
+    # Crear usuario
     usuario = Usuario(
         nombre_usuario=nombre_usuario,
         correo=correo,
@@ -65,7 +83,6 @@ def registrar_usuario():
     db.session.add(usuario)
     db.session.commit()
 
-    # Enviar correo de bienvenida sin errores de codificación
     enviar_correo(correo, nombre_usuario)
 
     return jsonify({"mensaje": "Usuario registrado correctamente"}), 201
@@ -73,13 +90,16 @@ def registrar_usuario():
 
 @usuarios_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_usuario(id_usuario):
-    db = conectar_bd()
-    cursor = db.cursor()
-    cursor.execute("SELECT nombre_usuario FROM usuarios WHERE id_usuario = %s", (id_usuario,))
-    resultado = cursor.fetchone()
-    db.close()
+    try:
+        db = conectar_bd()
+        cursor = db.cursor()
+        cursor.execute("SELECT nombre_usuario FROM usuarios WHERE id_usuario = %s", (id_usuario,))
+        resultado = cursor.fetchone()
+        db.close()
 
-    if resultado:
-        return jsonify({"nombre_usuario": resultado["nombre_usuario"]})
-    else:
-        return jsonify({"error": "Usuario no encontrado"}), 404
+        if resultado:
+            return jsonify({"nombre_usuario": resultado["nombre_usuario"]})
+        else:
+            return jsonify({"error": "Usuario no encontrado"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500

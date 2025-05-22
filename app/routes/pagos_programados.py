@@ -14,27 +14,50 @@ def crear_gasto_programado():
     if request.method == "OPTIONS":
         return jsonify({"status": "CORS preflight"}), 200
 
-    data = request.json
+    data = request.get_json()
 
     try:
-        fecha_emision = datetime.strptime(data["fecha_emision"], "%Y-%m-%d").date()
-        tipo_pago = data["tipo_pago"]
+        descripcion = data.get("descripcion", "").strip()
+        tipo_pago = data.get("tipo_pago")
+        id_usuario = data.get("id_usuario")
         id_categoria = data.get("id_categoria")
 
+        # Validaciones
+        if not descripcion or len(descripcion) > 100:
+            return jsonify({"error": "Descripción inválida"}), 400
+
+        if tipo_pago not in ["cheque", "efectivo", "transferencia", "debito", "automatico", "credito"]:
+            return jsonify({"error": "Tipo de pago no permitido"}), 400
+
+        try:
+            monto = float(data.get("monto"))
+            if monto <= 0:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify({"error": "Monto inválido"}), 400
+
+        try:
+            fecha_emision = datetime.strptime(data.get("fecha_emision"), "%Y-%m-%d").date()
+        except:
+            return jsonify({"error": "Fecha de emisión inválida"}), 400
+
         if tipo_pago == "cheque":
-            dias_cheque = int(data["dias_cheque"])
-            fecha_transaccion = fecha_emision + timedelta(days=dias_cheque)
+            try:
+                dias_cheque = int(data.get("dias_cheque"))
+                fecha_transaccion = fecha_emision + timedelta(days=dias_cheque)
+            except:
+                return jsonify({"error": "Días de cheque inválido"}), 400
         else:
             dias_cheque = None
             fecha_transaccion = fecha_emision
 
         nuevo = GastoProgramado(
-            id_usuario=data["id_usuario"],
+            id_usuario=id_usuario,
             tipo_pago=tipo_pago,
-            descripcion=data["descripcion"],
+            descripcion=descripcion,
             fecha_emision=fecha_emision,
             dias_cheque=dias_cheque,
-            monto=data["monto"],
+            monto=monto,
             fecha_transaccion=fecha_transaccion,
             id_categoria=id_categoria
         )
@@ -57,36 +80,64 @@ def obtener_gastos_programados(id_usuario):
 # PUT - Editar gasto programado
 @gastos_programados_bp.route("/<int:id_gasto_programado>", methods=["PUT"])
 def editar_gasto_programado(id_gasto_programado):
-    from datetime import date
-
-    data = request.json
+    data = request.get_json()
     gasto = GastoProgramado.query.get(id_gasto_programado)
 
     if not gasto:
         return jsonify({"error": "Gasto no encontrado"}), 404
 
     try:
-        gasto.tipo_pago = data["tipo_pago"]
-        gasto.descripcion = data["descripcion"]
-        gasto.fecha_emision = datetime.strptime(data["fecha_emision"], "%Y-%m-%d").date()
-        gasto.dias_cheque = int(data["dias_cheque"]) if data["tipo_pago"] == "cheque" else None
-        gasto.monto = data["monto"]
-        gasto.fecha_transaccion = gasto.fecha_emision + timedelta(days=gasto.dias_cheque) if gasto.dias_cheque else gasto.fecha_emision
-        gasto.id_categoria = data.get("id_categoria", gasto.id_categoria)
+        descripcion = data.get("descripcion", gasto.descripcion).strip()
+        tipo_pago = data.get("tipo_pago", gasto.tipo_pago)
+        id_categoria = data.get("id_categoria", gasto.id_categoria)
+
+        if not descripcion or len(descripcion) > 100:
+            return jsonify({"error": "Descripción inválida"}), 400
+
+        if tipo_pago not in ["cheque", "efectivo", "transferencia", "debito", "automatico", "credito"]:
+            return jsonify({"error": "Tipo de pago no permitido"}), 400
+
+        try:
+            monto = float(data.get("monto", gasto.monto))
+            if monto <= 0:
+                raise ValueError
+        except:
+            return jsonify({"error": "Monto inválido"}), 400
+
+        try:
+            fecha_emision = datetime.strptime(data.get("fecha_emision", gasto.fecha_emision.strftime("%Y-%m-%d")), "%Y-%m-%d").date()
+        except:
+            return jsonify({"error": "Fecha de emisión inválida"}), 400
+
+        if tipo_pago == "cheque":
+            try:
+                dias_cheque = int(data.get("dias_cheque"))
+                fecha_transaccion = fecha_emision + timedelta(days=dias_cheque)
+            except:
+                return jsonify({"error": "Días de cheque inválido"}), 400
+        else:
+            dias_cheque = None
+            fecha_transaccion = fecha_emision
+
+        # Asignar cambios
+        gasto.descripcion = descripcion
+        gasto.tipo_pago = tipo_pago
+        gasto.fecha_emision = fecha_emision
+        gasto.dias_cheque = dias_cheque
+        gasto.monto = monto
+        gasto.fecha_transaccion = fecha_transaccion
+        gasto.id_categoria = id_categoria
 
         db.session.commit()
 
-        # Actualizar transacciones futuras vinculadas a este gasto programado
+        # Actualizar transacciones futuras
         hoy = date.today()
-
-        transacciones = Transaccion.query.filter_by(
-            id_gasto_programado = gasto.id_gasto_programado
-        ).all()
-
+        transacciones = Transaccion.query.filter_by(id_gasto_programado=gasto.id_gasto_programado).all()
         for t in transacciones:
-            t.descripcion = gasto.descripcion
-            t.monto = gasto.monto
-            t.id_categoria = gasto.id_categoria
+            if t.fecha >= hoy:
+                t.descripcion = gasto.descripcion
+                t.monto = gasto.monto
+                t.id_categoria = gasto.id_categoria
 
         db.session.commit()
 

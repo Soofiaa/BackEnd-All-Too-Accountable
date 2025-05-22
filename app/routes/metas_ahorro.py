@@ -27,6 +27,14 @@ def crear_meta():
     if not titulo or not fecha_limite or not monto_meta or not id_usuario:
         return jsonify({"error": "Todos los campos son obligatorios"}), 400
 
+    # Validación adicional
+    try:
+        monto_meta = float(monto_meta)
+        if monto_meta <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Monto inválido"}), 400
+
     nueva_meta = MetaAhorro(
         titulo=titulo,
         fecha_limite=datetime.strptime(fecha_limite, '%d-%m-%Y').date(),
@@ -54,7 +62,12 @@ def editar_meta(id_meta):
         return jsonify({"error": "Todos los campos son obligatorios"}), 400
 
     meta.titulo = titulo
-    meta.fecha_limite = datetime.strptime(fecha_limite, '%d-%m-%Y').date()
+    
+    try:
+        meta.fecha_limite = datetime.strptime(fecha_limite, '%d-%m-%Y').date()
+    except ValueError:
+        return jsonify({"error": "Fecha inválida. Usa formato DD-MM-YYYY"}), 400
+
     meta.monto_meta = monto_meta
 
     db.session.commit()

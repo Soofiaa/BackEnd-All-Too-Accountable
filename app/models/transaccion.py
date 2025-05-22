@@ -5,11 +5,13 @@ class Transaccion(db.Model):
 
     id_transaccion = db.Column(db.Integer, primary_key=True)
     fecha = db.Column(db.Date, nullable=False)
-    monto = db.Column(db.Numeric(12, 2), nullable=False)
+    
     descripcion = db.Column(db.Text, nullable=False)
     tipo_pago = db.Column(db.Enum('efectivo', 'debito', 'credito', 'transferencia', 'deposito', 'contribucion tarjeta de credito', 'automatico', 'cheque','otro'), nullable=False)
+    monto = db.Column(db.Numeric(12, 2), nullable=False)
     tipo_pago2 = db.Column(db.Enum('efectivo', 'debito', 'credito', 'transferencia', 'deposito', 'contribucion tarjeta de credito', 'automatico', 'otro'), nullable=True)
     monto2 = db.Column(db.Numeric(12, 2), nullable=True)
+    monto_total = db.Column(db.Integer)
     imagen = db.Column(db.String(255))
     cuotas = db.Column(db.Integer, default=1)
     interes = db.Column(db.Numeric(5, 2), default=0)
@@ -28,12 +30,13 @@ class Transaccion(db.Model):
         return {
             "id_transaccion": self.id_transaccion,
             "fecha": str(self.fecha),
-            "monto": self.monto,
             "descripcion": self.descripcion,
             "id_categoria": self.id_categoria,
             "tipoPago": self.tipo_pago,
+            "monto": self.monto,
             "tipoPago2": self.tipo_pago2,
             "monto2": self.monto2,
+            "monto_total": self.monto_total,
             "imagen": f"/imagenes/{self.imagen}" if self.imagen else None,
             "cuotas": self.cuotas,
             "interes": self.interes,

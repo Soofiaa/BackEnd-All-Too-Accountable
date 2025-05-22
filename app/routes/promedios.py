@@ -8,16 +8,25 @@ promedios_bp = Blueprint("promedios", __name__)
 
 @promedios_bp.route("/registrar_promedios/<int:id_usuario>", methods=["POST"])
 def registrar_promedios_mensuales(id_usuario):
+    # Validar que el ID sea válido
+    if not isinstance(id_usuario, int) or id_usuario <= 0:
+        return jsonify({"error": "id_usuario inválido"}), 400
+
     hoy = date.today()
     mes_actual = hoy.month
     anio_actual = hoy.year
 
-    # Verifica que no exista ya un promedio registrado para este mes
-    existente = PromedioCategoria.query.filter_by(id_usuario=id_usuario, mes=mes_actual, anio=anio_actual).first()
+    # Verifica si ya hay un registro de promedios para este mes
+    existente = PromedioCategoria.query.filter_by(
+        id_usuario=id_usuario,
+        mes=mes_actual,
+        anio=anio_actual
+    ).first()
+
     if existente:
         return jsonify({"mensaje": "Ya existe un registro de promedios para este mes."}), 200
 
-    # Obtiene todas las transacciones del mes actual
+    # Obtiene todas las transacciones visibles tipo gasto del mes actual
     transacciones = Transaccion.query.filter(
         Transaccion.id_usuario == id_usuario,
         Transaccion.tipo == "gasto",
@@ -26,14 +35,14 @@ def registrar_promedios_mensuales(id_usuario):
         Transaccion.visible == True
     ).all()
 
-    # Agrupa por categoría
+    # Agrupa montos por categoría
     suma_por_categoria = {}
     for t in transacciones:
         if t.id_categoria not in suma_por_categoria:
             suma_por_categoria[t.id_categoria] = 0
         suma_por_categoria[t.id_categoria] += float(t.monto)
 
-    # Inserta los promedios
+    # Inserta los promedios por categoría
     for id_categoria, total in suma_por_categoria.items():
         nuevo_promedio = PromedioCategoria(
             id_usuario=id_usuario,
@@ -50,11 +59,13 @@ def registrar_promedios_mensuales(id_usuario):
 
 @promedios_bp.route("/promedio_categoria", methods=["GET"])
 def obtener_promedios_recientes():
-    id_usuario = request.args.get("id_usuario")
-    id_categoria = request.args.get("id_categoria")
-
-    if not id_usuario or not id_categoria:
-        return jsonify({"error": "Faltan parámetros"}), 400
+    try:
+        id_usuario = int(request.args.get("id_usuario"))
+        id_categoria = int(request.args.get("id_categoria"))
+        if id_usuario <= 0 or id_categoria <= 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({"error": "Parámetros inválidos"}), 400
 
     promedios = PromedioCategoria.query.filter_by(
         id_usuario=id_usuario,
