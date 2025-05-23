@@ -27,7 +27,7 @@ from app.routes.generar_transacciones import generar_transacciones_bp
 app = Flask(__name__)
 
 # Activar CORS 
-CORS(app, supports_credentials=True)
+CORS(app, resources={r"/*": {"origins": "http://localhost:5173"}})
 
 # Configuración base de datos
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:***REMOVED***@localhost/all_too_accountable'
