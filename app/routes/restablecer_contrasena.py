@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.utils.seguridad import hash_password
 from database import conectar_bd
-import bcrypt
 from pymysql.cursors import DictCursor
 
 

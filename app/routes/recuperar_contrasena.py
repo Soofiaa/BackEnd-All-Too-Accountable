@@ -19,7 +19,7 @@ def recuperar_contrasena():
 
     try:
         conexion = conectar_bd()
-        cursor = conexion.cursor(dictionary=True)
+        cursor = conexion.cursor()
 
         # Buscar usuario por correo
         cursor.execute("SELECT id_usuario, nombre_usuario FROM usuarios WHERE correo = %s", (correo,))
