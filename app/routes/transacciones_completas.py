@@ -33,6 +33,7 @@ def transacciones_completas():
         insertar_salarios_pasados(id_usuario)
 
         normales = []
+        eliminadas = []
 
         transacciones = Transaccion.query.filter_by(id_usuario=id_usuario).all()
         for t in transacciones:
@@ -53,14 +54,17 @@ def transacciones_completas():
                 trans_dict = t.to_dict()
                 trans_dict["esMensual"] = False
                 trans_dict["esProgramado"] = False
-                normales.append(trans_dict)
 
-        # Devolver en formato esperado por el frontend
+                if t.visible is False or t.visible == 0:
+                    eliminadas.append(trans_dict)
+                else:
+                    normales.append(trans_dict)
+
         return jsonify({
             "normales": normales,
             "mensuales": [],
             "programados": [],
-            "eliminadas": []
+            "eliminadas": eliminadas
         }), 200
 
     except Exception as e:
