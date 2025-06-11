@@ -67,7 +67,7 @@ def crear_categoria():
     db.session.add(nueva)
     db.session.commit()
 
-    return jsonify({"mensaje": "Categoría creada con éxito"}), 201
+    return jsonify(nueva.to_dict()), 201
 
 
 # Editar categoría

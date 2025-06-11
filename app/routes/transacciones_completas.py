@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.models.transaccion import Transaccion
-from database import db
+from database import db, conectar_bd
 from datetime import date, datetime
 from app.routes.transacciones import insertar_salario_mensual
 from app.models.detalle_usuario import DetallesUsuario
@@ -158,44 +158,96 @@ def insertar_salarios_pasados(id_usuario):
 
 
 def actualizar_salarios_existentes(id_usuario):
-    # 1. Obtener historial de salarios
-    historial_salarios = db.session.execute(
-        db.select(DetallesUsuario.fecha_salario, DetallesUsuario.salario)
-        .filter(DetallesUsuario.id_usuario == id_usuario)
-        .order_by(DetallesUsuario.fecha_salario.asc())
-    ).all()
+    db_conn = conectar_bd()
+    cursor = db_conn.cursor()
 
-    if not historial_salarios:
+    # Obtener la primera fecha de transacción
+    primera_fecha = db.session.execute(
+        db.select(Transaccion.fecha)
+        .filter(Transaccion.id_usuario == id_usuario)
+        .order_by(Transaccion.fecha.asc())
+        .limit(1)
+    ).scalar()
+
+    if not primera_fecha:
+        print("No hay transacciones para insertar salarios.")
         return
 
-    # 2. Obtener todas las transacciones de salario mensual
-    transacciones_salario = db.session.execute(
-        db.select(Transaccion).where(
-            Transaccion.id_usuario == id_usuario,
-            Transaccion.descripcion == "Salario mensual",
-            Transaccion.tipo == "ingreso"
-        )
-    ).scalars().all()
+    # Normalizar fecha
+    if isinstance(primera_fecha, str):
+        primera_fecha = datetime.strptime(primera_fecha, "%Y-%m-%d").date()
+    elif isinstance(primera_fecha, datetime):
+        primera_fecha = primera_fecha.date()
 
-    for t in transacciones_salario:
-        salario_correcto = 0
+    primer_mes = primera_fecha.replace(day=1)
+    hoy = date.today().replace(day=1)
 
-        # Normaliza la fecha de la transacción
-        fecha_transaccion = t.fecha
-        if isinstance(fecha_transaccion, datetime):
-            fecha_transaccion = fecha_transaccion.date()
+    # Obtener historial
+    cursor.execute("""
+        SELECT fecha_salario, salario
+        FROM detalles_usuario
+        WHERE id_usuario = %s
+        ORDER BY fecha_salario ASC
+    """, (id_usuario,))
+    historial_salarios = cursor.fetchall()
 
-        for fecha_salario, salario in reversed(historial_salarios):
-            if isinstance(fecha_salario, datetime):
-                fecha_salario = fecha_salario.date()
+    if not historial_salarios:
+        print("No hay historial de salarios.")
+        return
 
-            if fecha_salario <= fecha_transaccion:
-                salario_correcto = float(salario)
+    mes_actual = primer_mes
+    while mes_actual <= hoy:
+        existente = db.session.execute(
+            db.select(Transaccion)
+            .filter(
+                Transaccion.id_usuario == id_usuario,
+                Transaccion.fecha == mes_actual,
+                Transaccion.descripcion == "Salario mensual",
+                Transaccion.tipo == "ingreso"
+            )
+        ).scalar()
+
+        # Obtener el salario vigente para este mes
+        salario_mes = 0
+        for fila in reversed(historial_salarios):
+            fecha_s, salario = fila
+            if isinstance(fecha_s, str):
+                fecha_s = datetime.strptime(fecha_s, "%Y-%m-%d").date()
+            elif isinstance(fecha_s, datetime):
+                fecha_s = fecha_s.date()
+            if fecha_s <= mes_actual:
+                salario_mes = float(salario)
                 break
 
-        if salario_correcto > 0 and float(t.monto_total) != salario_correcto:
-            t.monto = salario_correcto
-            t.monto_total = salario_correcto
-            print(f"Actualizado salario en {t.fecha} a {salario_correcto}")
+        if existente:
+            if abs(existente.monto - salario_mes) > 0.01:
+                existente.monto = salario_mes
+                existente.monto_total = salario_mes
+                db.session.commit()
+                print(f"🔄 Transacción de salario actualizada para {mes_actual}: ${salario_mes}")
+        else:
+            if salario_mes > 0:
+                nueva = Transaccion(
+                    fecha=mes_actual,
+                    id_categoria=1,
+                    descripcion="Salario mensual",
+                    tipo_pago="automatico",
+                    monto=salario_mes,
+                    monto_total=salario_mes,
+                    cuotas=1,
+                    interes=0,
+                    valor_cuota=0,
+                    total_credito=0,
+                    tipo="ingreso",
+                    id_usuario=id_usuario,
+                    visible=True
+                )
+                db.session.add(nueva)
+                print(f"✅ Transacción de salario creada para {mes_actual}: ${salario_mes}")
+
+        mes_actual += relativedelta(months=1)
+        mes_actual = mes_actual.replace(day=1)
 
     db.session.commit()
+    cursor.close()
+    db_conn.close()
