@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import db
 from app.models.meta_ahorro import MetaAhorro
-from datetime import datetime
+from datetime import datetime, date
 
 metas_ahorro_bp = Blueprint('metas_ahorro_bp', __name__)
 
@@ -9,6 +9,26 @@ metas_ahorro_bp = Blueprint('metas_ahorro_bp', __name__)
 # Obtener metas por usuario
 @metas_ahorro_bp.route('/<int:id_usuario>', methods=['GET'])
 def obtener_metas(id_usuario):
+    hoy = date.today()
+
+    # Desactivar metas vencidas
+    metas_vencidas = MetaAhorro.query.filter_by(id_usuario=id_usuario, activa=True)\
+        .filter(MetaAhorro.fecha_limite < hoy).all()
+    for meta in metas_vencidas:
+        meta.activa = False
+
+    # Activar la próxima meta futura si no hay ninguna activa
+    hay_activa = MetaAhorro.query.filter_by(id_usuario=id_usuario, activa=True).first()
+    if not hay_activa:
+        proxima_meta = MetaAhorro.query.filter_by(id_usuario=id_usuario)\
+            .filter(MetaAhorro.fecha_limite >= hoy)\
+            .order_by(MetaAhorro.fecha_limite.asc()).first()
+        if proxima_meta:
+            proxima_meta.activa = True
+
+    db.session.commit()
+
+    # Devolver todas las metas
     metas = MetaAhorro.query.filter_by(id_usuario=id_usuario).all()
     return jsonify([meta.serialize() for meta in metas]), 200
 

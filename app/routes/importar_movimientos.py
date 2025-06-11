@@ -1,4 +1,5 @@
 from flask import Blueprint, request, jsonify
+from sqlalchemy import or_
 from werkzeug.utils import secure_filename
 import pandas as pd
 import os
@@ -23,7 +24,13 @@ def importar_movimientos():
     if not Usuario.query.get(id_usuario):
         return jsonify({"error": "El usuario no existe"}), 404
 
-    cat_general = Categoria.query.filter_by(nombre="General", id_usuario=id_usuario).first()
+    cat_general = Categoria.query.filter(
+        Categoria.nombre == "General",
+        or_(
+            Categoria.id_usuario == int(id_usuario),
+            Categoria.id_usuario == None
+        )
+    ).first()
     
     if not cat_general:
         return jsonify({"error": "No se encontró la categoría 'General'"}), 500
@@ -104,8 +111,7 @@ def importar_movimientos():
                 descripcion=detalle,
                 monto=monto,
                 tipo=tipo,
-                tipo_pago=tipo_pago,
-                categoria="General"
+                tipo_pago=tipo_pago
             ).first()
 
             if ya_existe:

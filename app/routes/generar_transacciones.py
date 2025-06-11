@@ -16,7 +16,7 @@ def generar_transacciones_mes_actual():
         except (ValueError, TypeError):
             return jsonify({"error": "id_usuario inválido"}), 400
 
-        # verificar existencia del usuario
+        # Verificar existencia del usuario
         if not Usuario.query.get(id_usuario):
             return jsonify({"error": "Usuario no encontrado"}), 404
 
@@ -24,13 +24,13 @@ def generar_transacciones_mes_actual():
         anio, mes = hoy.year, hoy.month
         generadas = []
 
-        # GASTOS MENSUALES
-        gastos_mensuales = GastoMensual.query.filter_by(id_usuario=id_usuario).all()
+        # GASTOS MENSUALES ACTIVOS
+        gastos_mensuales = GastoMensual.query.filter_by(id_usuario=id_usuario, activo=True).all()
         for gasto in gastos_mensuales:
             try:
                 fecha_pago = date(anio, mes, gasto.dia_pago)
             except ValueError:
-                continue  # Día inválido para ese mes
+                continue  # Día inválido para ese mes (ej. 31 de febrero)
 
             ya_existe = Transaccion.query.filter_by(
                 id_usuario=id_usuario,
@@ -60,7 +60,7 @@ def generar_transacciones_mes_actual():
                 db.session.add(nueva)
                 generadas.append(f"mensual:{gasto.nombre}")
 
-        # PAGOS PROGRAMADOS
+        # PAGOS PROGRAMADOS ACTIVOS
         pagos_programados = GastoProgramado.query.filter_by(id_usuario=id_usuario, activo=True).all()
         for pago in pagos_programados:
             fecha = pago.fecha_transaccion
@@ -102,3 +102,42 @@ def generar_transacciones_mes_actual():
     except Exception as e:
         print("Error al generar transacciones:", e)
         return jsonify({"error": "Ocurrió un error al generar las transacciones"}), 500
+
+
+@generar_transacciones_bp.route("/api/transacciones/limpiar_duplicados", methods=["POST"])
+def limpiar_duplicados():
+    try:
+        id_usuario = request.args.get("id_usuario")
+        if not id_usuario:
+            return jsonify({"error": "id_usuario requerido"}), 400
+
+        id_usuario = int(id_usuario)
+        transacciones = Transaccion.query.filter_by(id_usuario=id_usuario).all()
+
+        vistos = set()
+        eliminadas = []
+
+        for t in transacciones:
+            clave = None
+
+            if t.id_gasto_mensual:
+                clave = (t.id_gasto_mensual, t.fecha)
+            elif t.id_gasto_programado:
+                clave = (t.id_gasto_programado, t.fecha)
+
+            if clave:
+                if clave in vistos:
+                    db.session.delete(t)
+                    eliminadas.append(f"{t.descripcion} {t.fecha}")
+                else:
+                    vistos.add(clave)
+
+        db.session.commit()
+        return jsonify({
+            "mensaje": f"{len(eliminadas)} transacciones duplicadas eliminadas",
+            "eliminadas": eliminadas
+        }), 200
+
+    except Exception as e:
+        print("Error al limpiar duplicados:", e)
+        return jsonify({"error": "Error al limpiar duplicados"}), 500

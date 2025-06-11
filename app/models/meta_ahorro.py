@@ -9,11 +9,14 @@ class MetaAhorro(db.Model):
     monto_meta = db.Column(db.Integer, nullable=False)
     id_usuario = db.Column(db.Integer, db.ForeignKey('usuarios.id_usuario'), nullable=False)
 
+    activa = db.Column(db.Boolean, default=False)
+
     def serialize(self):
         return {
             'id_meta': self.id_meta,
             'titulo': self.titulo,
             'fecha_limite': self.fecha_limite.strftime('%d-%m-%Y') if hasattr(self.fecha_limite, 'strftime') else self.fecha_limite,
             'monto_meta': self.monto_meta,
-            'id_usuario': self.id_usuario
+            'id_usuario': self.id_usuario,
+            'activa': self.activa
         }
