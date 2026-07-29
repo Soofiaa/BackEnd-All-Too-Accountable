@@ -4,6 +4,7 @@ import uuid
 from datetime import datetime, timedelta
 import smtplib
 from email.mime.text import MIMEText
+import os
 
 recuperar_contrasena_bp = Blueprint("recuperar_contrasena", __name__)
 
@@ -56,15 +57,18 @@ def recuperar_contrasena():
         Equipo All Too Accountable
         """
 
+        mail_username = os.getenv("MAIL_USERNAME")
+        mail_password = os.getenv("MAIL_PASSWORD")
+
         msg = MIMEText(cuerpo, _charset="utf-8")
         msg['Subject'] = "Recuperación de contraseña - All Too Accountable"
-        msg['From'] = "soofiaa.menzel@gmail.com"
+        msg['From'] = mail_username
         msg['To'] = correo
 
         # Enviar correo
         with smtplib.SMTP("smtp.gmail.com", 587) as servidor:
             servidor.starttls()
-            servidor.login("soofiaa.menzel@gmail.com", "***REMOVED***")  # clave app Gmail
+            servidor.login(mail_username, mail_password)
             servidor.send_message(msg)
             print("Correo de recuperación enviado correctamente.")
             return jsonify({

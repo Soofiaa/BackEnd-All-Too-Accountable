@@ -7,6 +7,7 @@ from email.mime.text import MIMEText
 from datetime import datetime
 from app.models.usuario import Usuario
 from database import conectar_bd
+import os
 
 
 usuarios_bp = Blueprint('usuarios', __name__)
@@ -17,15 +18,18 @@ def enviar_correo(destinatario, nombre_usuario):
         "Tu cuenta ha sido creada con exito."
     )
 
+    mail_username = os.getenv("MAIL_USERNAME")
+    mail_password = os.getenv("MAIL_PASSWORD")
+
     msg = MIMEText(cuerpo, _charset="utf-8")
     msg['Subject'] = "Registro exitoso en All Too Accountable"
-    msg['From'] = "soofiaa.menzel@gmail.com"
+    msg['From'] = mail_username
     msg['To'] = destinatario
 
     try:
         with smtplib.SMTP("smtp.gmail.com", 587) as servidor:
             servidor.starttls()
-            servidor.login("soofiaa.menzel@gmail.com", "***REMOVED***")  # clave app Gmail
+            servidor.login(mail_username, mail_password)
             servidor.send_message(msg)
             print("Correo enviado correctamente.")
     except Exception as e:
